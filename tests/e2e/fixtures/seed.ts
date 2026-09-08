@@ -40,6 +40,14 @@ const REGISTER = 'planninq'
 export const FIXTURE = {
 	projectTitle: 'E2E Fixture Board',
 	labelTitle: 'E2E Bug',
+	labelColor: '#E4572E',
+	// A second label, carried by the "normal" task, that exists to be DELETED
+	// by the `delete-a-used-label` scenario. That scenario needs a label with a
+	// real usage count, and it must not be the one every other label spec
+	// asserts on — the delete test used to consume whichever row sorted first,
+	// which on a seeded instance is one of the register's own labels.
+	doomedLabelTitle: 'E2E Doomed',
+	doomedLabelColor: '#8E44AD',
 	tasks: {
 		approaching: 'E2E Due Soon Task',
 		overdue: 'E2E Overdue Task',
@@ -305,22 +313,34 @@ export async function seedFixtures(
 			}
 		}
 
-		// ── Label (attached to a task below) ────────────────────────────────
-		let label = findByTitle(await list('label'), FIXTURE.labelTitle)
-		if (!label) {
+		// ── Labels (attached to tasks below) ────────────────────────────────
+		/**
+		 * Ensure a label with this exact title and colour exists.
+		 *
+		 * @param title the label title
+		 * @param color the label colour, as a 6-digit hex string
+		 * @return the label id, or undefined when the create failed
+		 */
+		const ensureLabel = async (
+			title: string,
+			color: string,
+		): Promise<string | undefined> => {
+			const existing = findByTitle(await list('label'), title)
+			if (existing) {
+				return objId(existing)
+			}
 			const res = await ctx.post(objectsUrl('label'), {
-				data: {
-					title: FIXTURE.labelTitle,
-					color: '#E4572E',
-					description: 'Seeded label',
-				},
+				data: { title, color, description: 'Seeded label' },
 				failOnStatusCode: false,
 			})
-			if (res.ok()) {
-				label = (await res.json()) as OrObject
-			}
+			return res.ok() ? objId((await res.json()) as OrObject) : undefined
 		}
-		const labelId = objId(label)
+
+		const labelId = await ensureLabel(FIXTURE.labelTitle, FIXTURE.labelColor)
+		const doomedLabelId = await ensureLabel(
+			FIXTURE.doomedLabelTitle,
+			FIXTURE.doomedLabelColor,
+		)
 
 		// ── Tasks (assignee + priority + due-date spread) ───────────────────
 		const existingTasks = await list(
@@ -370,7 +390,63 @@ export async function seedFixtures(
 			columnOrder: 2,
 		})
 
-		console.log(`[seed] fixtures ready: project ${projectId}, ${Object.keys(columnIdByTitle).length} columns, label=${labelId ?? 'n/a'}`)
+		// ── Re-attach the labels to their tasks ─────────────────────────────
+		//
+		// The label references live on the TASK, and the label specs move them:
+		// `rename-and-recolor-propagate-by-reference` renames the fixture label,
+		// and `delete-a-used-label` deletes the doomed one, which sweeps its
+		// UUID out of every task server-side. `ensureTask` above cannot repair
+		// either, because it returns early the moment the task exists — the task
+		// survives both, only its `labels` array does not.
+		//
+		// So the attachment is asserted here every run rather than only at
+		// create time. Without it these specs pass exactly once per container
+		// and then fail on a board that legitimately has no chip left, which
+		// reads as a UI regression and is a seeding gap.
+		const seededTasks = await list(
+			'task',
+			`?project=${encodeURIComponent(projectId)}`,
+		)
+
+		/**
+		 * Ensure a seeded task references a label.
+		 *
+		 * @param taskTitle the seeded task's exact title
+		 * @param id        the label id to attach (no-op when undefined)
+		 * @return void
+		 */
+		const ensureTaskLabel = async (
+			taskTitle: string,
+			id: string | undefined,
+		): Promise<void> => {
+			if (!id) {
+				return
+			}
+			const task = findByTitle(seededTasks, taskTitle)
+			const taskId = objId(task)
+			if (!taskId) {
+				return
+			}
+			const current = Array.isArray(task?.labels)
+				? (task.labels as unknown[]).map(String)
+				: []
+			if (current.includes(id)) {
+				return
+			}
+			// PATCH, not PUT: OpenRegister's PUT fills every missing schema
+			// property with null, which would wipe the task's title, project and
+			// column — the same trap the projects store documents on
+			// `updateTaskStatus`.
+			await ctx.patch(`${objectsUrl('task')}/${taskId}`, {
+				data: { labels: [...current, id] },
+				failOnStatusCode: false,
+			})
+		}
+
+		await ensureTaskLabel(FIXTURE.tasks.approaching, labelId)
+		await ensureTaskLabel(FIXTURE.tasks.normal, doomedLabelId)
+
+		console.log(`[seed] fixtures ready: project ${projectId}, ${Object.keys(columnIdByTitle).length} columns, label=${labelId ?? 'n/a'}, doomed=${doomedLabelId ?? 'n/a'}`)
 		return true
 	} finally {
 		await ctx.dispose()

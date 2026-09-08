@@ -63,6 +63,37 @@
 				</div>
 			</div>
 
+			<!-- Label filter chips. Same idiom as the project list's status
+			     filter: one chip per value, the active one primary, pressed
+			     state exposed through aria-pressed. -->
+			<div
+				v-if="labels.length"
+				class="project-board__filters"
+				role="group"
+				:aria-label="t('planninq', 'Filter tasks by label')">
+				<NcChip
+					v-for="chip in labelFilterChips"
+					:key="chip.key"
+					:text="chip.title"
+					:variant="activeLabelId === chip.value ? 'primary' : 'secondary'"
+					:noClose="true"
+					class="project-board__filter-chip"
+					data-testid="label-filter-chip"
+					role="button"
+					tabindex="0"
+					:aria-pressed="activeLabelId === chip.value"
+					@click="setLabelFilter(chip.value)"
+					@keydown.enter="setLabelFilter(chip.value)"
+					@keydown.space.prevent="setLabelFilter(chip.value)">
+					<template v-if="chip.color" #icon>
+						<span
+							class="project-board__filter-swatch"
+							:style="{ backgroundColor: chip.color }"
+							aria-hidden="true" />
+					</template>
+				</NcChip>
+			</div>
+
 			<!-- Board loading overlay (tasks fetch) -->
 			<div v-if="tasksLoading" class="project-board__loading">
 				<NcLoadingIcon :size="32" />
@@ -106,7 +137,7 @@
 							@keydown.space.prevent="navigateToTask(task)"
 							@dragstart="onDragStart(task)"
 							@dragend="onDragEnd">
-							<TaskCard :task="task" />
+							<TaskCard :task="task" :labels="labelsForTask(task)" />
 
 							<!-- Keyboard-operable status change: accessible equivalent
 							     of drag-and-drop. Not itself draggable, and stops click
@@ -160,17 +191,21 @@ import { showError } from '@nextcloud/dialogs'
  * persisted to OpenRegister via the projects store (`updateTaskStatus`, a
  * RBAC-scoped PATCH — ADR-005/ADR-022). The move is optimistic and reverts on
  * a failed write. Each card is a {@link TaskCard}, which surfaces the due-date
- * warning badge. Empty columns render a graceful placeholder.
+ * warning badge and one chip per label the task carries. A chip row above the
+ * columns filters the board down to a single label. Empty columns render a
+ * graceful placeholder.
  *
  * @spec openspec/specs/kanban-board.md
+ * @spec openspec/specs/admin-user-settings.md
  */
-import { NcActionButton, NcActions, NcButton, NcEmptyContent, NcLoadingIcon } from '@nextcloud/vue'
+import { NcActionButton, NcActions, NcButton, NcChip, NcEmptyContent, NcLoadingIcon } from '@nextcloud/vue'
 import ArrowRightIcon from 'vue-material-design-icons/ArrowRight.vue'
 import CogIcon from 'vue-material-design-icons/Cog.vue'
 import LockOutline from 'vue-material-design-icons/LockOutline.vue'
 import ProjectSettingsSidebar from '../components/ProjectSettingsSidebar.vue'
 import TaskCard from '../components/TaskCard.vue'
 import { useProjectsStore } from '../store/projects.js'
+import { filterTasksByLabel, labelId, resolveTaskLabels, sortLabelsByTitle } from '../utils/labelHelpers.js'
 import { BOARD_STATUSES, groupTasksByStatus } from '../utils/taskHelpers.js'
 
 export default {
@@ -180,6 +215,7 @@ export default {
 		NcActions,
 		NcActionButton,
 		NcButton,
+		NcChip,
 		NcEmptyContent,
 		NcLoadingIcon,
 		ArrowRightIcon,
@@ -207,6 +243,10 @@ export default {
 			draggingTask: null,
 			/** @type {string|null} The status column currently hovered during a drag. */
 			dropTargetStatus: null,
+			/** @type {Array} Every app-wide label, for the card chips and the filter. */
+			labels: [],
+			/** @type {string|null} Id of the label the board is filtered by, null for all. */
+			activeLabelId: null,
 		}
 	},
 
@@ -261,7 +301,47 @@ export default {
 		 * @spec openspec/specs/kanban-board.md
 		 */
 		tasksByStatus() {
-			return groupTasksByStatus(this.tasks, BOARD_STATUSES)
+			return groupTasksByStatus(this.visibleTasks, BOARD_STATUSES)
+		},
+
+		/**
+		 * The tasks the board currently shows: every task when no label filter
+		 * is active, otherwise only the tasks carrying the selected label.
+		 *
+		 * Filtering is client-side on the collection already fetched, so it costs
+		 * no request and the column counts follow it — the point of the filter is
+		 * to narrow what is on screen, and a count that ignored it would say the
+		 * opposite of what the board shows.
+		 *
+		 * @return {Array}
+		 *
+		 * @spec openspec/specs/kanban-board.md
+		 */
+		visibleTasks() {
+			return filterTasksByLabel(this.tasks, this.activeLabelId)
+		},
+
+		/**
+		 * The label filter's chips: an "All labels" reset first, then one chip
+		 * per label in title order, each carrying its own colour.
+		 *
+		 * Every label is offered, not only the ones this board's tasks happen to
+		 * use, so a freshly created label is selectable here straight away.
+		 *
+		 * @return {Array<{key: string, value: string|null, title: string, color: string}>}
+		 *
+		 * @spec openspec/specs/admin-user-settings.md
+		 */
+		labelFilterChips() {
+			return [
+				{ key: 'all', value: null, title: this.t('planninq', 'All labels'), color: '' },
+				...sortLabelsByTitle(this.labels).map((label) => ({
+					key: labelId(label),
+					value: labelId(label),
+					title: label.title,
+					color: label.color,
+				})),
+			]
 		},
 
 		/**
@@ -301,6 +381,7 @@ export default {
 		}
 
 		await this.loadTasks(id)
+		await this.loadLabels()
 	},
 
 	beforeUnmount() {
@@ -326,6 +407,49 @@ export default {
 			} finally {
 				this.tasksLoading = false
 			}
+		},
+
+		/**
+		 * Load every app-wide label, so cards can render their chips and the
+		 * filter can offer them.
+		 *
+		 * A board with no labels simply renders no filter row: the labels are a
+		 * decoration on the tasks, so a failed or empty read must never keep the
+		 * board itself from rendering.
+		 *
+		 * @return {Promise<void>}
+		 *
+		 * @spec openspec/specs/kanban-board.md
+		 */
+		async loadLabels() {
+			if (this.accessDenied) {
+				return
+			}
+			this.labels = await this.projectsStore.fetchLabels()
+		},
+
+		/**
+		 * The label objects a task carries, resolved from its `labels` UUIDs.
+		 *
+		 * @param {object} task The task whose labels are resolved.
+		 * @return {Array} The label objects, in title order.
+		 *
+		 * @spec openspec/specs/kanban-board.md
+		 */
+		labelsForTask(task) {
+			return resolveTaskLabels(task, this.labels)
+		},
+
+		/**
+		 * Set the board's label filter, or clear it when the active chip is
+		 * pressed again.
+		 *
+		 * @param {string|null} id The label id to filter by, null for all labels.
+		 *
+		 * @spec openspec/specs/admin-user-settings.md
+		 */
+		setLabelFilter(id) {
+			this.activeLabelId = (id !== null && id === this.activeLabelId) ? null : id
 		},
 
 		/**
@@ -537,6 +661,38 @@ export default {
 	display: flex;
 	justify-content: center;
 	padding: 60px;
+}
+
+.project-board__filters {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 16px;
+}
+
+.project-board__filter-chip {
+	cursor: pointer;
+}
+
+/* Perceivable keyboard focus (WCAG 2.4.7) — the chip is role="button". */
+.project-board__filter-chip:focus-visible {
+	outline: 2px solid var(--color-primary-element);
+	outline-offset: 2px;
+}
+
+/* The label's own colour is DATA, so it arrives inline on the swatch, exactly
+   like the project accent bar above. The surrounding chip stays on the theme
+   tokens, and the chip text carries the name so colour is never the sole
+   signal (WCAG 1.4.1). */
+.project-board__filter-swatch {
+	display: block;
+	width: 12px;
+	height: 12px;
+	margin-inline-start: 4px;
+	border-radius: 50%;
+	border: 1px solid var(--color-border);
+	background: var(--color-background-dark);
 }
 
 .project-board__columns {
