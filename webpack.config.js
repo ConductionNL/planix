@@ -124,10 +124,36 @@ webpackConfig.resolve.alias = {
 	// must keep going through the exports map.
 	'@nextcloud/vue$': path.resolve(__dirname, 'node_modules/@nextcloud/vue/dist/index.mjs'),
 	'@nextcloud/dialogs$': path.resolve(__dirname, 'node_modules/@nextcloud/dialogs/dist/index.mjs'),
-	// Force the library's transitive @nextcloud/axios import to resolve to this
-	// app's installed copy, so interceptors / CSRF tokens are shared. The CJS
-	// build avoids "fully specified" errors from transitive `require('buffer')`.
-	'@nextcloud/axios$': path.resolve(__dirname, 'node_modules/@nextcloud/axios/dist/index.cjs'),
+	// NOTE: there is deliberately no `@nextcloud/axios$` alias here.
+	//
+	// This app used to pin one at `node_modules/@nextcloud/axios/dist/index.cjs`
+	// to make the library's transitive import resolve to our own copy. That
+	// alias was both unnecessary and fragile:
+	//
+	//  - Unnecessary. `@conduction/nextcloud-vue` declares `@nextcloud/axios`
+	//    as a peerDependency and never as a dependency, so npm hoists exactly
+	//    ONE copy to this app's `node_modules`. The library's dist emits a bare
+	//    `@nextcloud/axios` specifier, which resolves to that same single copy
+	//    by ordinary node resolution. Interceptors and the CSRF token are
+	//    already shared without any alias.
+	//
+	//  - Fragile. Naming a build artefact by filename hard-codes the upstream
+	//    package's internal layout. `@nextcloud/axios` 2.6.0 dropped its
+	//    CommonJS output entirely: `dist/index.cjs` no longer exists and the
+	//    `exports` map now declares only the `import` condition. The alias then
+	//    pointed at a missing file, and because it is an exact-match (`$`) rule
+	//    it took every consumer of the specifier down with it — the build
+	//    failed with 72 copies of
+	//
+	//        Module not found: Can't resolve '@nextcloud/axios' in
+	//          node_modules/@conduction/nextcloud-vue/dist/esm/components/…
+	//
+	//    once per component that imports axios, which reads like a broken
+	//    library rather than a stale line in our own webpack config.
+	//
+	// Let webpack resolve the package through its `exports` map instead. If a
+	// future dual-copy problem does appear, alias the PACKAGE, never a file
+	// inside it.
 }
 
 // Allow `.js` import requests to resolve to `.cjs` files. @nextcloud/vue ships
