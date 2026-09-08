@@ -28,6 +28,7 @@ const PROJECT_SCHEMA = 'project'
 const COLUMN_SCHEMA = 'column'
 const TASK_SCHEMA = 'task'
 const TIME_ENTRY_SCHEMA = 'plannedTimeEntry'
+const LABEL_SCHEMA = 'label'
 
 /**
  * Largest page OpenRegister will return. Asking for more is silently capped.
@@ -142,6 +143,9 @@ export const useProjectsStore = defineStore('projects', {
 			}
 			if (!store.objectTypeRegistry?.[TIME_ENTRY_SCHEMA]) {
 				store.registerObjectType(TIME_ENTRY_SCHEMA, TIME_ENTRY_SCHEMA, REGISTER, { registerSlug: REGISTER, schemaSlug: TIME_ENTRY_SCHEMA })
+			}
+			if (!store.objectTypeRegistry?.[LABEL_SCHEMA]) {
+				store.registerObjectType(LABEL_SCHEMA, LABEL_SCHEMA, REGISTER, { registerSlug: REGISTER, schemaSlug: LABEL_SCHEMA })
 			}
 			return store
 		},
@@ -775,6 +779,37 @@ export const useProjectsStore = defineStore('projects', {
 				return Array.isArray(tasks) ? tasks : []
 			} catch (err) {
 				console.error('fetchTasks error:', err)
+				return []
+			}
+		},
+
+		// ── 2.13b fetchLabels ─────────────────────────────────────────────
+
+		/**
+		 * Fetch every app-wide label, for the board's card chips and its label
+		 * filter.
+		 *
+		 * Reads the `label` schema straight from OpenRegister (ADR-022), NOT the
+		 * `/apps/planninq/api/labels` admin endpoint the labels store uses: that
+		 * one aggregates usage counts and answers 403 to anyone who is not an
+		 * admin, so a board built on it would show no chips at all to the
+		 * ordinary project members the board exists for. The schema's own
+		 * authorization grants `read` to every authenticated user.
+		 *
+		 * Labels are app-wide, not per project, so this takes no filter — a task
+		 * may reference any of them.
+		 *
+		 * @return {Promise<Array>} Every label object (empty array on error)
+		 *
+		 * @spec openspec/specs/kanban-board.md
+		 */
+		async fetchLabels() {
+			try {
+				const objectStore = this._objectStore()
+				const labels = await fetchEvery(objectStore, LABEL_SCHEMA)
+				return Array.isArray(labels) ? labels : []
+			} catch (err) {
+				console.error('fetchLabels error:', err)
 				return []
 			}
 		},

@@ -41,6 +41,24 @@
 				:text="estimateLabel"
 				:noClose="true"
 				class="task-card__estimate-badge" />
+
+			<!-- Label chips. The swatch carries the label's own colour, the
+			     text carries its name, so colour is never the sole signal
+			     (WCAG 1.4.1) and a recolor needs no task write. -->
+			<NcChip
+				v-for="label in labels"
+				:key="labelKey(label)"
+				:text="label.title"
+				:noClose="true"
+				class="task-card__label-badge"
+				data-testid="task-label-chip">
+				<template #icon>
+					<span
+						class="task-card__label-swatch"
+						:style="{ backgroundColor: label.color }"
+						aria-hidden="true" />
+				</template>
+			</NcChip>
 		</div>
 
 		<!-- Assignee (optional) -->
@@ -55,6 +73,7 @@
 // publishes only an `exports` map (root barrel + `./components/<Name>`).
 import { NcChip } from '@nextcloud/vue'
 import { formatDuration } from '../utils/durationParser.js'
+import { labelId } from '../utils/labelHelpers.js'
 import { dueDateStatus } from '../utils/taskHelpers.js'
 
 /**
@@ -62,11 +81,14 @@ import { dueDateStatus } from '../utils/taskHelpers.js'
  *
  * Renders a single task as a draggable card inside a board column: title,
  * optional description, a due-date warning badge (yellow "Due soon" /
- * red "Overdue"), the status + priority chips, and the assignee. The badge is
- * driven by the pure `dueDateStatus` helper (date-only comparison) so colour is
- * never the sole signal — a text label is always present (WCAG 1.4.1).
+ * red "Overdue"), the status + priority chips, one chip per label the task
+ * carries, and the assignee. The badge is driven by the pure `dueDateStatus`
+ * helper (date-only comparison) so colour is never the sole signal — a text
+ * label is always present (WCAG 1.4.1), and the label chip follows the same
+ * rule: the swatch shows the label's colour, the chip text shows its name.
  *
  * @spec openspec/specs/kanban-board.md
+ * @spec openspec/specs/admin-user-settings.md
  */
 export default {
 	name: 'TaskCard',
@@ -76,6 +98,19 @@ export default {
 		task: {
 			type: Object,
 			required: true,
+		},
+
+		/**
+		 * The label OBJECTS this task carries, already resolved from the task's
+		 * `labels` UUID array by the board.
+		 *
+		 * Resolution belongs to the board, not the card: labels are app-wide, so
+		 * one fetch serves every card, and a card that resolved its own would
+		 * issue one request per task.
+		 */
+		labels: {
+			type: Array,
+			default: () => [],
 		},
 	},
 
@@ -176,6 +211,17 @@ export default {
 			return map[this.task.priority] || 'secondary'
 		},
 	},
+
+	methods: {
+		/**
+		 * @param {object} label The label to key.
+		 * @return {string} The label's canonical id, used as the v-for key.
+		 * @spec exclude Render helper — resolves the label id OpenRegister returned.
+		 */
+		labelKey(label) {
+			return labelId(label)
+		},
+	},
 }
 </script>
 
@@ -222,6 +268,24 @@ export default {
 
 .task-card__priority-badge {
 	flex-shrink: 0;
+}
+
+.task-card__label-badge {
+	flex-shrink: 0;
+}
+
+/* The label's own colour is DATA, held on the label object, so it arrives as
+   an inline background on this swatch — the same way the board paints a
+   project's accent bar. Everything around it stays on the theme tokens, and
+   the border keeps a pale swatch visible against a light card. */
+.task-card__label-swatch {
+	display: block;
+	width: 12px;
+	height: 12px;
+	margin-inline-start: 4px;
+	border-radius: 50%;
+	border: 1px solid var(--color-border);
+	background: var(--color-background-dark);
 }
 
 .task-card__assignee {
