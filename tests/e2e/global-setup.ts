@@ -261,6 +261,66 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 		console.warn(`[playwright globalSetup] fixture seeding failed: ${(err as Error).message}`)
 	}
 
+	// DISMISS THE CONDUCTION SETUP WIZARD, WHICH IS NOT NEXTCLOUD'S.
+	//
+	// `dismissFirstRunWizard` above disables Nextcloud's own `firstrunwizard`
+	// app. The dialog that actually blocks this suite is a different component:
+	// CnSetupWizard from @conduction/nextcloud-vue, rendered as
+	// `[data-testid-modal="cn-wizard-dialog"]`. Nothing dismissed it.
+	//
+	// It masks the whole viewport, so a click lands on the mask instead of the
+	// control and the failure reads as a timeout on a locator that resolved,
+	// was visible, enabled and stable, and could not be clicked:
+	//
+	//   waiting for … [data-testid="cn-nav-settings"] … button
+	//     - element is visible, enabled and stable
+	//     - <div class="modal-wrapper"> … subtree intercepts pointer events
+	//
+	// WHY IT ONLY BITES SOMETIMES. The wizard keys on the manifest's
+	// `setup.version`, not on whether it has ever been seen:
+	// `cn-setup-wizard-dismissed:<appId>:<setup.version>`. So a suite can be
+	// green for weeks and go red the moment the app is upgraded or that
+	// version is bumped, in specs that never touched setup. Observed here on
+	// 2026-09-08 immediately after an `occ upgrade` moved planninq to
+	// 0.2.20 — the admin-settings specs stayed green, because they never load
+	// the app root where the wizard mounts.
+	//
+	// Seeded for every version up to a number no manifest will reach, so a
+	// future bump cannot re-arm it.
+	const page2 = await context.newPage()
+	try {
+		await page2.goto(`${baseURL}/index.php/apps/planninq/`, {
+			waitUntil: 'domcontentloaded',
+		})
+		await page2.evaluate(() => {
+			for (let v = 0; v <= 50; v++) {
+				try {
+					window.localStorage.setItem(
+						`cn-setup-wizard-dismissed:planninq:${v}`,
+						'1',
+					)
+					window.localStorage.setItem(
+						`cn-walkthrough-seen:planninq:${v}`,
+						'999.0.0',
+					)
+				} catch {
+					// A browser with site data blocked has nothing to seed and
+					// nothing to lose; the wizard will simply show.
+				}
+			}
+			try {
+				window.localStorage.setItem('cn-walkthrough-seen:planninq', '999.0.0')
+			} catch {
+				// as above
+			}
+		})
+		console.log('[playwright globalSetup] Conduction setup wizard dismissed for planninq')
+	} catch (err) {
+		console.warn(`[playwright globalSetup] could not dismiss the Conduction setup wizard: ${(err as Error).message}`)
+	} finally {
+		await page2.close()
+	}
+
 	// Persist the storage state so individual specs reuse the session.
 	await context.storageState({ path: STORAGE_STATE })
 	await browser.close()
