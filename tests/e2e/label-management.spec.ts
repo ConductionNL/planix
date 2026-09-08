@@ -49,7 +49,34 @@ function dialog(page: Page) {
 	return page.getByRole('dialog').last()
 }
 
+/**
+ * THREE OF THESE SCENARIOS CANNOT BE COVERED, AND NOT FOR WANT OF A TEST.
+ *
+ * `create-a-label`, `rename-and-recolor-propagate-by-reference` and
+ * `delete-a-used-label` each close on a clause about the LABEL CHIP ON A TASK
+ * CARD and the BOARD LABEL FILTER:
+ *
+ *   "AND it MUST be selectable on tasks and in the board label filter"
+ *   "AND the task card chip ... MUST show `Defect` in orange on next render"
+ *   "AND the chip MUST disappear from board cards and the label filter"
+ *
+ * Neither surface exists. Measured 2026-09-08 across the whole frontend:
+ * `task.labels` is read in exactly one place, `src/views/settings/Settings.vue`,
+ * which is this admin list. `TaskCard.vue` renders due-date, status, priority
+ * and estimate chips and has no label chip; `ProjectBoard.vue` has no label
+ * filter. That is why the rename test below asserts on the settings page: the
+ * board has nothing to assert against.
+ *
+ * So they are left UNANCHORED on purpose. Anchoring them would report three
+ * MVP scenarios as covered on the strength of a test that cannot reach the
+ * half of each scenario that matters, which is the exact defect gate-19 was
+ * written to prevent. The gap is a missing FEATURE, not a missing test, and it
+ * needs either the chip and filter built or the spec amended.
+ *
+ * The two anchored below are covered outright, clause for clause.
+ */
 test.describe('Label management — admin settings', () => {
+	// @e2e admin-user-settings::view-labels-with-usage-counts
 	test('View labels with usage counts', async ({ page }) => {
 		const res = await page.goto(SETTINGS_URL)
 		test.skip(
@@ -99,6 +126,12 @@ test.describe('Label management — admin settings', () => {
 		await expect(page.getByText(title)).toBeVisible()
 	})
 
+	// @e2e admin-user-settings::invalid-color-is-rejected
+	//
+	// The scenario's second clause — a direct API write with an invalid colour
+	// is rejected by schema validation with HTTP 400 — is the wire contract,
+	// and belongs to Newman under the Playwright-UI-only convention this file
+	// already follows. The clause asserted here is the dialog's, in full.
 	test('Invalid color is rejected in the dialog', async ({ page }) => {
 		const res = await page.goto(SETTINGS_URL)
 		test.skip(
@@ -160,11 +193,18 @@ test.describe('Label management — admin settings', () => {
 			'Planninq not installed in this environment',
 		)
 
-		const deleteBtn = page
-			.getByRole('button', { name: /Delete label/i })
-			.first()
-		await expect(deleteBtn).toBeVisible()
-		await deleteBtn.click()
+		// WHICH label is deleted has to be known, or the outcome cannot be
+		// asserted. This test used to click the first delete control and stop,
+		// so it never learned the row's title and had nothing to check
+		// afterwards. Read the title first, then delete THAT row.
+		const firstRow = page.locator('.label-mgmt__item').first()
+		await expect(firstRow).toBeVisible()
+		const doomed = (
+			await firstRow.locator('.label-mgmt__title').innerText()
+		).trim()
+		expect(doomed).not.toBe('')
+
+		await firstRow.getByRole('button', { name: /Delete label/i }).click()
 
 		// Confirmation dialog warns about the usage count before deleting.
 		await expect(page.getByText(/will be removed from \d+ tasks?/i)).toBeVisible()
@@ -180,5 +220,13 @@ test.describe('Label management — admin settings', () => {
 		await dialog(page)
 			.getByRole('button', { name: /^Delete label$/i })
 			.click()
+
+		// THE ASSERTION THIS TEST WAS MISSING.
+		//
+		// It ended on the confirm click. A click is a request, not an outcome:
+		// the label could have survived, the cascade could have failed, the
+		// dialog could have stayed open, and this test would have passed on all
+		// three. The row is gone, or the delete did not happen.
+		await expect(page.locator('.label-mgmt__item').filter({ hasText: doomed })).toHaveCount(0, { timeout: 15_000 })
 	})
 })

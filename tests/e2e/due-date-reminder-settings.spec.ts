@@ -28,6 +28,20 @@ import { BASE_URL as NC } from './base-url.ts'
 import { openPlanninqSettingsDialog, PLANNINQ_ROOT } from './nav.ts'
 
 test.describe('Due-date reminder — user settings dialog', () => {
+	// @e2e admin-user-settings::toggle-due-date-reminders-off
+	// @e2e admin-user-settings::toggle-due-date-reminders-back-on
+	//
+	// WHAT THIS TIER OWNS, AND WHAT IT DOES NOT. Both scenarios close on two
+	// clauses this browser cannot see: the OpenRegister override stored for
+	// (`task`, `taskDueSoon`), and whether a `task_due_soon` notification is
+	// subsequently delivered. Neither is observable from a settings dialog, and
+	// a test that pretended otherwise would be asserting its own optimism.
+	//
+	// What is asserted here is the whole of the user-facing clause: the toggle
+	// starts on, goes off, SURVIVES A RELOAD off, comes back on, and survives a
+	// reload on. The write-through and the delivery suppression belong to
+	// PHPUnit, in the same division this file's sibling scenarios already use
+	// (`@e2e exclude one-shot upgrade repair step, covered by PHPUnit`).
 	test('Toggle due-date reminders off and back on persists', async ({
 		page,
 	}) => {
@@ -69,6 +83,18 @@ test.describe('Due-date reminder — user settings dialog', () => {
 })
 
 test.describe('Due-date reminder — admin lead time', () => {
+	// @e2e admin-user-settings::lead-time-field-shown-with-default
+	// @e2e admin-user-settings::saving-a-new-lead-time
+	// @e2e admin-user-settings::invalid-lead-time-rejected-in-the-ui
+	//
+	// The two persistence clauses are now RELOADED rather than inferred. The
+	// test used to read a success toast and a validation message and stop, so
+	// "MUST be stored via IAppConfig" and "no value MUST be persisted" were
+	// both taken on the word of a banner. A toast is what the page says it did.
+	//
+	// The remaining clause of `saving-a-new-lead-time` — that the `taskDueSoon`
+	// rule window is updated to match — belongs to the task-notifications
+	// capability and is not observable from this page.
 	test('Lead-time field default 24, save 48 persists, 0 shows a validation error', async ({
 		page,
 	}) => {
@@ -100,9 +126,24 @@ test.describe('Due-date reminder — admin lead time', () => {
 		await save.click()
 		await expect(page.getByText(/Reminder lead time saved successfully/i)).toBeVisible()
 
+		// "MUST be stored via IAppConfig" — read it back rather than believing
+		// the toast. A success banner is what the page says it did.
+		await page.reload()
+		await expect(page.locator('#due-reminder-lead-hours')).toHaveValue('48')
+
 		// 0 is rejected with an inline validation error and is not persisted.
-		await field.fill('0')
-		await save.click()
+		const field2 = page.locator('#due-reminder-lead-hours')
+		await field2.fill('0')
+		await page
+			.locator('form:has(#due-reminder-lead-hours)')
+			.getByRole('button', { name: /save/i })
+			.click()
 		await expect(page.getByText(/Lead time must be between 1 and 336 hours/i)).toBeVisible()
+
+		// "AND no value MUST be persisted" — the half the validation message
+		// does not prove. Without this, a page that showed the error AND wrote
+		// 0 anyway would pass.
+		await page.reload()
+		await expect(page.locator('#due-reminder-lead-hours')).toHaveValue('48')
 	})
 })
