@@ -75,7 +75,7 @@
     "eslint": "^10.10.0",
     "node-polyfill-webpack-plugin": "4.0.0",
     "style-loader": "~4.0.0",
-    "stylelint": "^17.9.1",
+    "stylelint": "^17.15.0",
     "vitest": "^4.1.11",
     "vue-eslint-parser": "^10.3.0",
     "vue-loader": "^17.4.2",
