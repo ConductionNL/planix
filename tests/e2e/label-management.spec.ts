@@ -17,17 +17,32 @@
  * labels) live in Newman / PHPUnit per the Playwright-UI-only / Newman-for-API
  * convention — those scenarios are annotated `@e2e exclude` in the spec delta.
  *
- * A fixture label ("E2E Bug") is seeded by `tests/e2e/global-setup.ts` (via
- * `fixtures/seed.ts`) and attached to a seeded task, so the admin Label
- * management section renders its list and controls unconditionally. Only the
- * legitimate "planninq not installed" skip remains; the former "section not
- * present" guards are now hard `expect(...)` assertions.
+ * Two fixture labels are seeded by `tests/e2e/global-setup.ts` (via
+ * `fixtures/seed.ts`) and attached to seeded tasks: "E2E Bug" on the due-soon
+ * task, and "E2E Doomed" on the normal task for the delete scenario to consume.
+ * So the admin Label management section renders its list and controls
+ * unconditionally. Only the legitimate "planninq not installed" skip remains;
+ * the former "section not present" guards are now hard `expect(...)`
+ * assertions.
+ *
+ * THREE OF THESE SCENARIOS CLOSE ON THE BOARD, NOT ON THIS PAGE:
+ *
+ *   "AND it MUST be selectable on tasks and in the board label filter"
+ *   "AND the task card chip ... MUST show `Defect` in orange on next render"
+ *   "AND the chip MUST disappear from board cards and the label filter"
+ *
+ * Each of those three tests therefore ends on the kanban board, on the task
+ * card label chip and the board label filter. They used to end on this settings
+ * page, because until the chip and the filter existed the board had nothing to
+ * assert against.
  */
 
 import type { Page } from '@playwright/test'
 
 import { expect, test } from '@playwright/test'
 import { BASE_URL as NC } from './base-url.ts'
+import { FIXTURE } from './fixtures/seed.ts'
+import { openFixtureProjectBoard } from './nav.ts'
 
 const SETTINGS_URL = `${NC}/index.php/settings/admin/planninq`
 
@@ -50,31 +65,36 @@ function dialog(page: Page) {
 }
 
 /**
- * THREE OF THESE SCENARIOS CANNOT BE COVERED, AND NOT FOR WANT OF A TEST.
+ * The label management row for one label title.
  *
- * `create-a-label`, `rename-and-recolor-propagate-by-reference` and
- * `delete-a-used-label` each close on a clause about the LABEL CHIP ON A TASK
- * CARD and the BOARD LABEL FILTER:
- *
- *   "AND it MUST be selectable on tasks and in the board label filter"
- *   "AND the task card chip ... MUST show `Defect` in orange on next render"
- *   "AND the chip MUST disappear from board cards and the label filter"
- *
- * Neither surface exists. Measured 2026-09-08 across the whole frontend:
- * `task.labels` is read in exactly one place, `src/views/settings/Settings.vue`,
- * which is this admin list. `TaskCard.vue` renders due-date, status, priority
- * and estimate chips and has no label chip; `ProjectBoard.vue` has no label
- * filter. That is why the rename test below asserts on the settings page: the
- * board has nothing to assert against.
- *
- * So they are left UNANCHORED on purpose. Anchoring them would report three
- * MVP scenarios as covered on the strength of a test that cannot reach the
- * half of each scenario that matters, which is the exact defect gate-19 was
- * written to prevent. The gap is a missing FEATURE, not a missing test, and it
- * needs either the chip and filter built or the spec amended.
- *
- * The two anchored below are covered outright, clause for clause.
+ * @param page  the Playwright page
+ * @param title the exact label title
+ * @return a locator for that row
  */
+function labelRow(page: Page, title: string) {
+	return page.locator('.label-mgmt__item').filter({ hasText: title })
+}
+
+/**
+ * The board's label filter chips.
+ *
+ * @param page the Playwright page
+ * @return a locator for every filter chip
+ */
+function labelFilterChips(page: Page) {
+	return page.locator('[data-testid="label-filter-chip"]')
+}
+
+/**
+ * The label chips rendered on the board's task cards.
+ *
+ * @param page the Playwright page
+ * @return a locator for every task card label chip
+ */
+function taskLabelChips(page: Page) {
+	return page.locator('[data-testid="task-label-chip"]')
+}
+
 test.describe('Label management — admin settings', () => {
 	// @e2e admin-user-settings::view-labels-with-usage-counts
 	test('View labels with usage counts', async ({ page }) => {
@@ -92,6 +112,12 @@ test.describe('Label management — admin settings', () => {
 		await expect(page.getByText(/used by \d+ tasks?/i).first()).toBeVisible()
 	})
 
+	// @e2e admin-user-settings::create-a-label
+	//
+	// The scenario's last clause is "AND it MUST be selectable on tasks and in
+	// the board label filter", so this test does not stop at the admin list: it
+	// opens the board and requires the new label to be offered by the filter,
+	// and to filter the board down to the nothing that carries it (usage 0).
 	test('Create a label with a custom color', async ({ page }) => {
 		const res = await page.goto(SETTINGS_URL)
 		test.skip(
@@ -124,6 +150,18 @@ test.describe('Label management — admin settings', () => {
 			.click()
 
 		await expect(page.getByText(title)).toBeVisible()
+
+		// ── The board half of the scenario ──────────────────────────────────
+		await openFixtureProjectBoard(page)
+
+		const chip = labelFilterChips(page).filter({ hasText: title })
+		await expect(chip).toHaveCount(1)
+
+		// Selectable, and it selects honestly: a brand-new label is on no task,
+		// so filtering by it must empty the board. A filter that showed every
+		// card here would pass a `toBeVisible` on the chip and prove nothing.
+		await chip.click()
+		await expect(page.locator('[data-testid="task-card"]')).toHaveCount(0)
 	})
 
 	// @e2e admin-user-settings::invalid-color-is-rejected
@@ -151,6 +189,16 @@ test.describe('Label management — admin settings', () => {
 		await expect(page.getByText(/6-digit hex code/i)).toBeVisible()
 	})
 
+	// @e2e admin-user-settings::rename-and-recolor-propagate-by-reference
+	//
+	// A task stores the label's UUID, never a copy of its title or colour, so
+	// this scenario's "no task object may be modified" is what makes the last
+	// clause reachable at all: the card re-renders from the label object.
+	//
+	// Nothing restores the rename afterwards on purpose — `fixtures/seed.ts`
+	// re-asserts the fixture label and its attachment on every run, so the
+	// precondition belongs to the harness rather than to whichever spec ran
+	// last (the same rule the seeder already applies to the admin settings).
 	test('Rename and recolor propagate to task chips by reference', async ({
 		page,
 	}) => {
@@ -160,11 +208,12 @@ test.describe('Label management — admin settings', () => {
 			'Planninq not installed in this environment',
 		)
 
-		const editBtn = page
-			.getByRole('button', { name: /Edit label/i })
-			.first()
-		await expect(editBtn).toBeVisible()
-		await editBtn.click()
+		// Edit THE FIXTURE LABEL, not "the first row". The first row is whatever
+		// sorts first on this instance — one of the register's own seed labels —
+		// and renaming that leaves nothing on the board to assert against.
+		const row = labelRow(page, FIXTURE.labelTitle)
+		await expect(row).toHaveCount(1)
+		await row.getByRole('button', { name: /Edit label/i }).click()
 
 		await page.getByLabel(/Title/i).fill('Defect')
 		await page.getByLabel(/Hex color/i).fill('#FF8800')
@@ -180,10 +229,26 @@ test.describe('Label management — admin settings', () => {
 			.getByRole('button', { name: /^Save$/i })
 			.click()
 
-		// Re-render reflects the new title on the board chip (no task write).
-		await expect(page.getByText(/Defect/i).first()).toBeVisible()
+		// ── The board half of the scenario ──────────────────────────────────
+		await openFixtureProjectBoard(page)
+
+		// The card chip shows the NEW name...
+		const chip = taskLabelChips(page).filter({ hasText: 'Defect' })
+		await expect(chip).toHaveCount(1)
+
+		// ...in the NEW colour. The name alone would still pass if the recolor
+		// had been dropped, and colour is half of what this scenario claims.
+		await expect(chip.locator('.task-card__label-swatch')).toHaveCSS(
+			'background-color',
+			'rgb(255, 136, 0)',
+		)
+
+		// The old name is gone from both surfaces — one label object, one name.
+		await expect(taskLabelChips(page).filter({ hasText: FIXTURE.labelTitle })).toHaveCount(0)
+		await expect(labelFilterChips(page).filter({ hasText: 'Defect' })).toHaveCount(1)
 	})
 
+	// @e2e admin-user-settings::delete-a-used-label
 	test('Delete a used label via the usage-warning dialog', async ({
 		page,
 	}) => {
@@ -193,18 +258,19 @@ test.describe('Label management — admin settings', () => {
 			'Planninq not installed in this environment',
 		)
 
-		// WHICH label is deleted has to be known, or the outcome cannot be
-		// asserted. This test used to click the first delete control and stop,
-		// so it never learned the row's title and had nothing to check
-		// afterwards. Read the title first, then delete THAT row.
-		const firstRow = page.locator('.label-mgmt__item').first()
-		await expect(firstRow).toBeVisible()
-		const doomed = (
-			await firstRow.locator('.label-mgmt__title').innerText()
-		).trim()
-		expect(doomed).not.toBe('')
-
-		await firstRow.getByRole('button', { name: /Delete label/i }).click()
+		// Delete the label seeded FOR this scenario, not "the first row".
+		//
+		// This test used to click the first delete control and stop, so it never
+		// learned which row it had destroyed and had nothing to check afterwards.
+		// The row it reached was also whichever label sorted first on the
+		// instance, which on a seeded install is one of the register's own.
+		// `E2E Doomed` exists for this test, is attached to the seeded normal
+		// task (so the cascade has real work to do), and is re-seeded on the
+		// next run.
+		const doomed = FIXTURE.doomedLabelTitle
+		const row = labelRow(page, doomed)
+		await expect(row).toHaveCount(1)
+		await row.getByRole('button', { name: /Delete label/i }).click()
 
 		// Confirmation dialog warns about the usage count before deleting.
 		await expect(page.getByText(/will be removed from \d+ tasks?/i)).toBeVisible()
@@ -227,6 +293,22 @@ test.describe('Label management — admin settings', () => {
 		// the label could have survived, the cascade could have failed, the
 		// dialog could have stayed open, and this test would have passed on all
 		// three. The row is gone, or the delete did not happen.
-		await expect(page.locator('.label-mgmt__item').filter({ hasText: doomed })).toHaveCount(0, { timeout: 15_000 })
+		await expect(labelRow(page, doomed)).toHaveCount(0, { timeout: 15_000 })
+
+		// ── The board half of the scenario ──────────────────────────────────
+		//
+		// "AND the chip MUST disappear from board cards and the label filter".
+		// The cascade sweeps the UUID out of the task server-side, so the card
+		// that carried it renders no chip for it and the filter no longer
+		// offers it.
+		await openFixtureProjectBoard(page)
+
+		await expect(taskLabelChips(page).filter({ hasText: doomed })).toHaveCount(0)
+		await expect(labelFilterChips(page).filter({ hasText: doomed })).toHaveCount(0)
+
+		// The board still renders — the cascade removed one reference, not the
+		// task. Without this a board that failed to load would satisfy both
+		// counts above.
+		await expect(page.locator('[data-testid="task-card"]')).not.toHaveCount(0)
 	})
 })
