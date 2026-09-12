@@ -1,7 +1,7 @@
 <template>
 	<div class="member-search">
 		<NcTextField
-			:model-value="query"
+			:modelValue="query"
 			:label="t('planninq', 'Add member')"
 			:placeholder="t('planninq', 'Search for a user…')"
 			:disabled="loading"
@@ -35,6 +35,8 @@
 </template>
 
 <script>
+import { showError } from '@nextcloud/dialogs'
+import { generateUrl } from '@nextcloud/router'
 /**
  * MemberSearch component.
  *
@@ -43,8 +45,6 @@
  * @spec openspec/changes/retrofit-2026-05-24-annotate-planix/tasks.md#task-10
  */
 import { NcAvatar, NcTextField } from '@nextcloud/vue'
-import { generateUrl } from '@nextcloud/router'
-import { showError } from '@nextcloud/dialogs'
 import { useProjectsStore } from '../store/projects.js'
 
 export default {
@@ -57,6 +57,7 @@ export default {
 			type: String,
 			required: true,
 		},
+
 		existingMembers: {
 			type: Array,
 			default: () => [],
@@ -134,12 +135,12 @@ export default {
 				const data = await resp.json()
 				const users = data.ocs?.data?.users || data.ocs?.data || []
 				// Normalise to { id, displayName }
-				this.results = (Array.isArray(users) ? users : Object.keys(users)).map((u) =>
-					typeof u === 'string' ? { id: u, displayName: u } : u,
-				).filter((u) => !this.existingMembers.includes(u.id))
+				this.results = (Array.isArray(users) ? users : Object.keys(users)).map((u) => typeof u === 'string' ? { id: u, displayName: u } : u).filter((u) => !this.existingMembers.includes(u.id))
 			} catch (err) {
 				// Ignore abort errors — they occur when a newer keystroke cancels this request.
-				if (err.name === 'AbortError') return
+				if (err.name === 'AbortError') {
+					return
+				}
 				console.error('User search failed:', err)
 				showError(this.t('planninq', 'Could not search for users. Please try again.'))
 				this.results = []
@@ -157,7 +158,9 @@ export default {
 		 * @spec openspec/changes/retrofit-2026-05-24-annotate-planix/tasks.md#task-10
 		 */
 		async selectUser(user) {
-			if (this.existingMembers.includes(user.id)) return
+			if (this.existingMembers.includes(user.id)) {
+				return
+			}
 			try {
 				const store = useProjectsStore()
 				await store.addMember(this.projectId, user.id)

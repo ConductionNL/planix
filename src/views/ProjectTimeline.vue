@@ -22,11 +22,11 @@
 			<div class="project-timeline__zoom">
 				<NcSelect v-model="zoom"
 					:options="zoomOptions"
-					:input-label="t('planninq', 'Zoom')"
+					:inputLabel="t('planninq', 'Zoom')"
 					:aria-label-combobox="t('planninq', 'Zoom level')"
 					:clearable="false"
 					label="label"
-					track-by="value" />
+					trackBy="value" />
 			</div>
 		</div>
 
@@ -150,16 +150,16 @@
  */
 import { translate as t } from '@nextcloud/l10n'
 import { NcButton, NcEmptyContent, NcLoadingIcon, NcSelect } from '@nextcloud/vue'
-import ArrowLeft from 'vue-material-design-icons/ArrowLeft.vue'
 import AlertCircleOutline from 'vue-material-design-icons/AlertCircleOutline.vue'
+import ArrowLeft from 'vue-material-design-icons/ArrowLeft.vue'
 import ChartTimeline from 'vue-material-design-icons/ChartTimeline.vue'
 import { fetchProjectTimeline } from '../api/timeline.js'
 import { useProjectsStore } from '../store/projects.js'
 import {
+	buildLayout,
 	MS_PER_DAY,
 	PX_PER_DAY,
 	STATUS_COLORS,
-	buildLayout,
 	toScheduled,
 } from '../utils/timelineHelpers.js'
 
@@ -199,18 +199,21 @@ export default {
 		projectId() {
 			return this.$route.params.id
 		},
+
 		/**
 		 * @spec exclude Trivial display getter — project title with UUID fallback.
 		 */
 		projectTitle() {
 			return useProjectsStore().activeProject?.title || this.projectId
 		},
+
 		/**
 		 * @spec exclude Trivial getter — pixels per day for the active zoom.
 		 */
 		pxPerDay() {
 			return PX_PER_DAY[this.zoom?.value] || PX_PER_DAY.day
 		},
+
 		/**
 		 * Scheduled tasks with both endpoints resolved to day indices.
 		 *
@@ -221,46 +224,53 @@ export default {
 		scheduledTasks() {
 			return toScheduled(this.tasks)
 		},
+
 		/**
 		 * Positioned bars + dependency arrows + chart dimensions (pure helper).
 		 *
-		 * @return {object} The layout from {@see buildLayout}.
+		 * @return {object} The layout from {@link buildLayout}.
 		 *
 		 * @spec openspec/changes/gantt-timeline-view/specs/gantt-timeline-view/spec.md#requirement-the-timeline-renders-the-existing-dependency-links-not-a-new-copy
 		 */
 		layout() {
 			return buildLayout(this.scheduledTasks, this.dependencies, this.pxPerDay)
 		},
+
 		/**
 		 * @spec exclude Trivial getter — earliest scheduled day index.
 		 */
 		minDay() {
 			return this.layout.minDay
 		},
+
 		/**
 		 * @spec exclude Trivial getter — latest scheduled day index.
 		 */
 		maxDay() {
 			return this.layout.maxDay
 		},
+
 		/**
 		 * @spec exclude Trivial getter — inclusive day span of the chart.
 		 */
 		dayCount() {
 			return this.layout.dayCount
 		},
+
 		/**
 		 * @spec exclude Trivial getter — chart width in pixels.
 		 */
 		chartWidth() {
 			return this.layout.chartWidth
 		},
+
 		/**
 		 * @spec exclude Trivial getter — bar area height in pixels.
 		 */
 		barsHeight() {
 			return this.layout.barsHeight
 		},
+
 		/**
 		 * @spec exclude Presentational — bars with display title + hover tooltip.
 		 */
@@ -275,12 +285,14 @@ export default {
 				tooltip: tooltips[bar.id] || bar.title,
 			}))
 		},
+
 		/**
 		 * @spec exclude Trivial getter — dependency arrow lines from the layout.
 		 */
 		edgeLines() {
 			return this.layout.edgeLines
 		},
+
 		/**
 		 * Day axis ticks (one per day), labelled and weekend-flagged.
 		 *
@@ -302,6 +314,7 @@ export default {
 			}
 			return ticks
 		},
+
 		/**
 		 * @spec exclude Presentational — today marker x, or null when off-range.
 		 */
@@ -368,6 +381,7 @@ export default {
 				this.loading = false
 			}
 		},
+
 		/**
 		 * Resolve a task status to its bar colour.
 		 *
@@ -379,6 +393,7 @@ export default {
 		statusColor(status) {
 			return STATUS_COLORS[status] || STATUS_COLORS.open
 		},
+
 		/**
 		 * Axis tick label for a day, thinned out per the active zoom level.
 		 *
@@ -397,6 +412,7 @@ export default {
 			}
 			return String(date.getUTCDate())
 		},
+
 		/**
 		 * Build the hover tooltip text for a task bar.
 		 *

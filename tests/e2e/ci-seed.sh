@@ -193,7 +193,12 @@ import json, sys
 path, kind, code = sys.argv[1], sys.argv[2], sys.argv[3]
 required = {
     'registers': ['planninq'],
-    'schemas': ['task', 'project', 'column', 'label', 'timeEntry', 'dependency'],
+    # `plannedTimeEntry`, not `timeEntry`: #575 renamed the slug because three
+    # apps declared one and a schema slug is global per organisation. This
+    # list is the ninth hiding place a slug rename has, and the one that
+    # kills the whole suite: the seed exits before Playwright starts, so
+    # every spec is reported as not run rather than as failing.
+    'schemas': ['task', 'project', 'column', 'label', 'plannedTimeEntry', 'dependency'],
 }[kind]
 with open(path) as fh:
     raw = fh.read()
@@ -210,6 +215,24 @@ except json.JSONDecodeError:
     sys.exit(1)
 items = body if isinstance(body, list) else body.get('results', [])
 slugs = {i.get('slug') for i in items if isinstance(i, dict)}
+
+# A PAGE IS NOT THE POPULATION. `total` is what the instance holds; `items` is
+# what this request returned. On a shared instance carrying several apps those
+# differ wildly, and a slug that simply fell off the page reads exactly like a
+# slug the import never created — with an error message that blames the import.
+# Refuse to judge rather than report a false absence.
+total = None
+if isinstance(body, dict):
+    for _k in ('total', 'count'):
+        if isinstance(body.get(_k), int):
+            total = body[_k]
+            break
+if total is not None and total > len(items):
+    print(f'::error::{kind} listing is TRUNCATED: {len(items)} of {total} returned.')
+    print('::error::Raise the _limit on this request. A missing slug cannot be '
+          'distinguished from one that fell off the page, so this check is '
+          'refusing to report either.')
+    sys.exit(1)
 missing = [s for s in required if s not in slugs]
 print(f'[ci-seed] {kind} present: {sorted(s for s in slugs if s)}')
 if missing:
@@ -223,13 +246,13 @@ PY
 REG_BODY="$(mktemp)"
 REG_CODE="$(curl -sS -u "${USER_NAME}:${USER_PASS}" -H 'OCS-APIRequest: true' \
 	-o "$REG_BODY" -w '%{http_code}' \
-	"${BASE}/index.php/apps/openregister/api/registers?_limit=300" || echo 000)"
+	"${BASE}/index.php/apps/openregister/api/registers?_limit=2000" || echo 000)"
 verify "$REG_BODY" registers "$REG_CODE"
 
 SCH_BODY="$(mktemp)"
 SCH_CODE="$(curl -sS -u "${USER_NAME}:${USER_PASS}" -H 'OCS-APIRequest: true' \
 	-o "$SCH_BODY" -w '%{http_code}' \
-	"${BASE}/index.php/apps/openregister/api/schemas?_limit=1000" || echo 000)"
+	"${BASE}/index.php/apps/openregister/api/schemas?_limit=10000" || echo 000)"
 verify "$SCH_BODY" schemas "$SCH_CODE"
 
 # The register existing is still not the same as it being WRITABLE by the admin
@@ -249,6 +272,39 @@ fi
 
 echo "[ci-seed] Planninq register + schemas provisioned."
 
+# ── 2b. Make the admin a returning user ─────────────────────────
+# 🔴 OR THE SUPPORT DIALOG SWALLOWS EVERY CLICK.
+#
+# nc-vue opens the support dialog on first visit and records that the user has
+# seen it in a per-user preference. Playwright starts from a fresh browser
+# profile, but this preference lives on the SERVER, so writing it once here
+# makes every context a returning user.
+#
+# Without it the dialog mounts as a full modal mask over the app.
+# due-date-reminder-settings.spec.ts failed exactly this way: the call log
+# reads "element is visible, enabled and stable" for the Settings button and
+# then names a role=dialog with data-testid-modal="cn-support-dialog" as the
+# subtree intercepting pointer events. The element was found; the click never
+# landed, and the test timed out accusing the settings dialog.
+#
+# buildiq's seed does the same thing for the same reason.
+set_pref() {
+	# $1 = preference key, $2 = value
+	code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 120 \
+		-u "${USER_NAME}:${USER_PASS}" \
+		-X PUT \
+		-H 'Content-Type: application/json' \
+		-H 'OCS-APIRequest: true' \
+		--data "{\"value\":\"$2\"}" \
+		"${BASE}/index.php/apps/planninq/api/preferences/$1" || echo 000)"
+	echo "[ci-seed] preference $1=$2 -> HTTP ${code}"
+	if [ "$code" != "200" ]; then
+		echo "::warning::Could not set the '$1' preference (HTTP ${code}) — the first-visit overlay will re-open in every test and swallow clicks."
+	fi
+}
+
+set_pref 'support-dialog-seen' '1'
+
 # ── 3. Warm the SPA so the first spec doesn't pay the cold start ─────────────
 # The shared workflow serves Nextcloud with `php -S 0.0.0.0:8080`. It now sets
 # PHP_CLI_SERVER_WORKERS=8, but the first hit still pays a cold opcache and the
@@ -263,7 +319,7 @@ for path in \
 	"/index.php/apps/planninq/" \
 	"/index.php/apps/planninq/api/settings" \
 	"/index.php/settings/admin/planninq" \
-	"/index.php/apps/openregister/api/registers?_limit=1"
+	"/index.php/apps/openregister/api/registers?_limit=2000"
 do
 	code="$(curl -sS -o /dev/null -w '%{http_code}' -u "${USER_NAME}:${USER_PASS}" \
 		-H 'OCS-APIRequest: true' "${BASE}${path}" || echo 000)"

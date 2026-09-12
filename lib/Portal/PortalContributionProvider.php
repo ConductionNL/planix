@@ -183,7 +183,7 @@ class PortalContributionProvider {
 				[
 					'id' => 'contractorTimeEntries',
 					'register' => self::REGISTER,
-					'schema' => 'timeEntry',
+					'schema' => 'plannedTimeEntry',
 					'scopeField' => 'contractorRef',
 					'scopeClaim' => 'contractorRef',
 					'label' => 'My time entries',
@@ -219,7 +219,7 @@ class PortalContributionProvider {
 					'type' => 'create',
 					'label' => 'Log time',
 					'register' => self::REGISTER,
-					'schema' => 'timeEntry',
+					'schema' => 'plannedTimeEntry',
 					'fields' => [
 						'task',
 						'date',

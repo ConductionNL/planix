@@ -9,7 +9,7 @@
 						v-model="durationInput"
 						:label="t('planninq', 'Duration')"
 						:error="!!durationError"
-						:helper-text="durationError || t('planninq', 'e.g. 2h 30m, 90m, 1.5h')"
+						:helperText="durationError || t('planninq', 'e.g. 2h 30m, 90m, 1.5h')"
 						required />
 				</div>
 
@@ -55,6 +55,7 @@
 </template>
 
 <script>
+import { showError } from '@nextcloud/dialogs'
 /**
  * TimeEntryDialog.
  *
@@ -67,9 +68,8 @@
  * @spec openspec/specs/time-tracking.md
  */
 import { NcButton, NcDialog, NcLoadingIcon, NcTextField } from '@nextcloud/vue'
-import { showError } from '@nextcloud/dialogs'
 import { useTimeEntriesStore } from '../store/timeEntries.js'
-import { parseDuration, formatDuration } from '../utils/durationParser.js'
+import { formatDuration, parseDuration } from '../utils/durationParser.js'
 
 export default {
 	name: 'TimeEntryDialog',
@@ -82,6 +82,7 @@ export default {
 			type: String,
 			required: true,
 		},
+
 		/** The entry being edited, or null when logging a new one. */
 		entry: {
 			type: Object,
@@ -169,7 +170,7 @@ export default {
 					throw new Error(store.error || 'save-failed')
 				}
 				this.$emit('saved')
-			} catch (err) {
+			} catch {
 				this.submitError = store.error || this.t('planninq', 'Could not save the time entry. Please try again.')
 				showError(this.submitError)
 			} finally {

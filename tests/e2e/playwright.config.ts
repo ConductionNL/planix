@@ -59,8 +59,7 @@
 
 import { defineConfig, devices } from '@playwright/test'
 import * as path from 'path'
-
-import { BASE_URL } from './base-url'
+import { BASE_URL } from './base-url.ts'
 
 export default defineConfig({
 	testDir: __dirname,
@@ -74,7 +73,13 @@ export default defineConfig({
 	retries: process.env.CI ? 1 : 0,
 	workers: 1,
 	reporter: [
-		['html', { open: 'never', outputFolder: path.resolve(__dirname, 'playwright-report') }],
+		[
+			'html',
+			{
+				open: 'never',
+				outputFolder: path.resolve(__dirname, 'playwright-report'),
+			},
+		],
 		['list'],
 	],
 	outputDir: path.resolve(__dirname, 'test-results'),

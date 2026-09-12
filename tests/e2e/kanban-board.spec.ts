@@ -25,8 +25,8 @@
  * skip guards are now hard `expect(...)` assertions.
  */
 
-import { test, expect } from '@playwright/test'
-import { openFixtureProjectBoard } from './nav'
+import { expect, test } from '@playwright/test'
+import { openFixtureProjectBoard } from './nav.ts'
 
 // Open the kanban board of the first reachable project.
 //
@@ -49,7 +49,9 @@ async function openFirstBoard(page) {
 test.describe('Kanban board — due date warning badge', () => {
 	// @e2e kanban-board::approaching-task-shows-yellow-badge
 	// @e2e kanban-board::overdue-task-shows-red-badge
-	test('approaching tasks show a "Due soon" badge and overdue tasks show an "Overdue" badge', async ({ page }) => {
+	test('approaching tasks show a "Due soon" badge and overdue tasks show an "Overdue" badge', async ({
+		page,
+	}) => {
 		const board = await openFirstBoard(page)
 
 		// The board renders one column per task status; a card surfaces its
@@ -66,7 +68,9 @@ test.describe('Kanban board — due date warning badge', () => {
 
 	// @e2e kanban-board::normal-task-shows-no-badge
 	// @e2e kanban-board::task-without-due-date-shows-no-badge
-	test('tasks with a far-future or absent due date show no warning badge', async ({ page }) => {
+	test('tasks with a far-future or absent due date show no warning badge', async ({
+		page,
+	}) => {
 		const board = await openFirstBoard(page)
 
 		// A card with no due-date status must not carry the warning badge class.

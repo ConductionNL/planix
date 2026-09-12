@@ -42,7 +42,7 @@ Vrij en open source onder de EUPL-1.2-licentie.
 
 **Ondersteuning:** Voor ondersteuning, neem contact op via support@conduction.nl.
     ]]></description>
-    <version>0.2.17</version>
+    <version>0.2.20-unstable.20260905154301</version>
     <licence>EUPL-1.2</licence>
     <author mail="info@conduction.nl" homepage="https://www.conduction.nl/">Conduction</author>
     <namespace>Planninq</namespace>
@@ -161,6 +161,21 @@ Vrij en open source onder de EUPL-1.2-licentie.
             <step>OCA\Planninq\Repair\MigrateAppConfigKeys</step>
             <step>OCA\Planninq\Repair\MigrateUserPreferences</step>
             <step>OCA\Planninq\Repair\MigrateRegisterSlug</step>
+            <!--
+                ONE LEVEL DOWN FROM MigrateRegisterSlug, AND THE SAME TRAP.
+                `timeEntry` is a slug three apps declared — humaniq's HR
+                booking, pipelinq's billing record and this app's project
+                booking — and a slug is global per organisation, so
+                SchemaMapper::find() answered whichever row it reached first.
+                humaniq owns the hours; this record is the PLANNING side of one,
+                and keeps a `timeEntry` reference to the humaniq booking.
+
+                Renaming the row BEFORE InitializeSettings is what makes it a
+                rename: the import matches by (application, slug) and its
+                not-found branch CREATES a second schema, orphaning every
+                existing entry silently while the app reads an empty list.
+            -->
+            <step>OCA\Planninq\Repair\RenameTimeEntrySchemaSlug</step>
             <step>OCA\Planninq\Repair\InitializeSettings</step>
             <step>OCA\Planninq\Repair\ReconcileDueReminderOverrides</step>
         </post-migration>
@@ -178,6 +193,8 @@ Vrij en open source onder de EUPL-1.2-licentie.
                 happen here or the import below forks a second, empty register.
             -->
             <step>OCA\Planninq\Repair\MigrateRegisterSlug</step>
+            <!-- See the note in <post-migration>. -->
+            <step>OCA\Planninq\Repair\RenameTimeEntrySchemaSlug</step>
             <step>OCA\Planninq\Repair\InitializeSettings</step>
         </install>
     </repair-steps>

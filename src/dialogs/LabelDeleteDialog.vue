@@ -35,6 +35,7 @@
 </template>
 
 <script>
+import { showError, showSuccess } from '@nextcloud/dialogs'
 /**
  * LabelDeleteDialog.
  *
@@ -46,7 +47,6 @@
  * @spec openspec/changes/label-management-admin/specs/admin-user-settings/spec.md
  */
 import { NcButton, NcDialog, NcLoadingIcon } from '@nextcloud/vue'
-import { showSuccess, showError } from '@nextcloud/dialogs'
 import { useLabelsStore } from '../store/labels.js'
 
 export default {
@@ -91,13 +91,7 @@ export default {
 			const store = useLabelsStore()
 			try {
 				const tasksUpdated = await store.deleteLabel(this.label.id)
-				showSuccess(
-					this.n('planninq',
-						'Label deleted and removed from {count} task',
-						'Label deleted and removed from {count} tasks',
-						tasksUpdated,
-						{ count: tasksUpdated }),
-				)
+				showSuccess(this.n('planninq', 'Label deleted and removed from {count} task', 'Label deleted and removed from {count} tasks', tasksUpdated, { count: tasksUpdated }))
 				this.$emit('deleted')
 			} catch {
 				showError(store.error || this.t('planninq', 'Could not delete label'))

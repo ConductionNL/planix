@@ -1,7 +1,7 @@
 import { generateUrl } from '@nextcloud/router'
 import { useObjectStore } from './modules/object.js'
-import { useObjectStore as useConductionObjectStore } from './objectStore.js'
 import { useSettingsStore } from './modules/settings.js'
+import { useObjectStore as useConductionObjectStore } from './objectStore.js'
 
 /**
  * Boot routine that configures both OpenRegister object stores against the

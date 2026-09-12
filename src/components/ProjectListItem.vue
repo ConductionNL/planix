@@ -36,12 +36,24 @@
 			{{ memberCount }} {{ t('planninq', 'members') }}
 		</span>
 
+		<!-- Billable and budget. Only shown when the project actually carries
+		     them, so internal work does not grow empty money columns. -->
+		<span v-if="project.billable" class="project-list-item__badge">
+			{{ t('planninq', 'Billable') }}
+		</span>
+		<span
+			v-if="hasBudget"
+			class="project-list-item__badge"
+			:aria-label="t('planninq', 'Budget: {amount}', { amount: budgetLabel })">
+			{{ budgetLabel }}
+		</span>
+
 		<!-- Status chip -->
 		<NcChip
 			class="project-list-item__status"
 			:text="statusLabel"
 			:variant="statusVariant"
-			:no-close="true" />
+			:noClose="true" />
 	</li>
 </template>
 
@@ -79,6 +91,7 @@ export default {
 				active: this.t('planninq', 'Active'),
 				archived: this.t('planninq', 'Archived'),
 				completed: this.t('planninq', 'Completed'),
+				cancelled: this.t('planninq', 'Cancelled'),
 			}
 			return map[this.project.status] || this.project.status || this.t('planninq', 'Active')
 		},
@@ -91,8 +104,47 @@ export default {
 			// code returned 'default', which was never a valid NcChip value in
 			// either major — it only ever tripped the prop validator and fell
 			// through to the base styling.
-			const map = { active: 'success', archived: 'warning', completed: 'secondary' }
+			const map = {
+				active: 'success',
+				archived: 'warning',
+				completed: 'secondary',
+				cancelled: 'error',
+			}
 			return map[this.project.status] || 'secondary'
+		},
+
+		/**
+		 * Whether this project carries an agreed budget worth showing.
+		 *
+		 * Zero is the schema default and means "no budget was agreed", so it is
+		 * not rendered — a `€ 0` budget reads as a decision nobody made.
+		 *
+		 * @return {boolean} Whether to render the budget.
+		 *
+		 * @spec openspec/specs/project-delivery/spec.md#requirement-a-project-carries-its-delivery-and-billing-terms-v1
+		 */
+		hasBudget() {
+			return Number(this.project.budgetAmount) > 0
+		},
+
+		/**
+		 * The agreed budget, formatted for the reader's locale.
+		 *
+		 * @return {string} The budget, without cents.
+		 *
+		 * @spec openspec/specs/project-delivery/spec.md#requirement-a-project-carries-its-delivery-and-billing-terms-v1
+		 */
+		budgetLabel() {
+			const amount = Number(this.project.budgetAmount) || 0
+			try {
+				return new Intl.NumberFormat(undefined, {
+					style: 'currency',
+					currency: 'EUR',
+					maximumFractionDigits: 0,
+				}).format(amount)
+			} catch {
+				return String(Math.round(amount))
+			}
 		},
 	},
 }

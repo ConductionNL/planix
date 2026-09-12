@@ -39,10 +39,9 @@
  * nothing about apps whose translations differ.
  */
 
+import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-
-import { expect, test } from '@playwright/test'
 
 /**
  * The app id this repo declares. Resolved from the repo root by walking up
@@ -57,7 +56,9 @@ const APP_ID = (() => {
 	for (const file of candidates) {
 		try {
 			const match = readFileSync(file, 'utf8').match(/<id>([^<]+)<\/id>/)
-			if (match) return match[1].trim()
+			if (match) {
+				return match[1].trim()
+			}
 		} catch {
 			// try the next candidate
 		}
@@ -70,12 +71,15 @@ const LOCALES = ['nl', 'en']
 
 test.describe(`l10n browser catalogue (${APP_ID})`, () => {
 	// The literal 404 that made every translation unreachable.
-	test('the generated catalogue is served to the browser', async ({ page }) => {
+	test('the generated catalogue is served to the browser', async ({
+		page,
+	}) => {
 		await page.goto(`/index.php/apps/${APP_ID}/`, {
 			waitUntil: 'domcontentloaded',
 		})
 		await page.waitForFunction(
-			() => typeof (window as unknown as { OC?: unknown }).OC !== 'undefined',
+			() => typeof (window as unknown as { OC?: unknown }).OC
+				!== 'undefined',
 			null,
 			{ timeout: 20_000 },
 		)
@@ -97,19 +101,16 @@ test.describe(`l10n browser catalogue (${APP_ID})`, () => {
 
 		for (const locale of LOCALES) {
 			const res = await page.request.get(`${webroot}/l10n/${locale}.js`)
-			expect(res.status(), `l10n/${locale}.js must be served, not 404`).toBe(
-				200,
-			)
+			expect(
+				res.status(),
+				`l10n/${locale}.js must be served, not 404`,
+			).toBe(200)
 
 			const body = await res.text()
-			expect(body, 'it must be an OC.L10N.register call').toContain(
-				'OC.L10N.register',
-			)
+			expect(body, 'it must be an OC.L10N.register call').toContain('OC.L10N.register')
 			// Registered under the CURRENT app id. After a rename the old id is
 			// still a perfectly valid-looking file that `t()` never consults.
-			expect(body, `it must register under "${APP_ID}"`).toContain(
-				`"${APP_ID}"`,
-			)
+			expect(body, `it must register under "${APP_ID}"`).toContain(`"${APP_ID}"`)
 		}
 	})
 
@@ -122,7 +123,8 @@ test.describe(`l10n browser catalogue (${APP_ID})`, () => {
 			waitUntil: 'domcontentloaded',
 		})
 		await page.waitForFunction(
-			() => typeof (window as unknown as { OC?: unknown }).OC !== 'undefined',
+			() => typeof (window as unknown as { OC?: unknown }).OC
+				!== 'undefined',
 			null,
 			{ timeout: 20_000 },
 		)
@@ -134,16 +136,20 @@ test.describe(`l10n browser catalogue (${APP_ID})`, () => {
 					Record<string, string>
 				>
 				t?: (app: string, key: string) => string
-				OC?: { L10N?: { translate?: (app: string, key: string) => string } }
+				OC?: {
+					L10N?: { translate?: (app: string, key: string) => string }
+				}
 			}
 			const registry = w._oc_l10n_registry_translations || {}
 			const bundle = registry[appId]
-			if (!bundle) return { registered: false as const, keys: 0 }
+			if (!bundle) {
+				return { registered: false as const, keys: 0 }
+			}
 
 			// A key whose translation differs from itself — the only kind that can
 			// tell a working lookup apart from the identity fallback.
-			const translated =
-				Object.keys(bundle).find((k) => bundle[k] !== k) || null
+			const translated
+				= Object.keys(bundle).find((k) => bundle[k] !== k) || null
 			const translate = w.OC?.L10N?.translate || w.t
 			return {
 				registered: true as const,
@@ -151,7 +157,9 @@ test.describe(`l10n browser catalogue (${APP_ID})`, () => {
 				sampleKey: translated,
 				expected: translated ? bundle[translated] : null,
 				actual:
-					translated && translate ? translate(appId, translated) : null,
+					translated && translate
+						? translate(appId, translated)
+						: null,
 			}
 		}, APP_ID)
 

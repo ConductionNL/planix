@@ -65,7 +65,10 @@ const L10N_DIR = path.join(REPO_ROOT, 'l10n')
  * @return {string} the <id> declared in appinfo/info.xml
  */
 function appId() {
-	const xml = fs.readFileSync(path.join(REPO_ROOT, 'appinfo', 'info.xml'), 'utf8')
+	const xml = fs.readFileSync(
+		path.join(REPO_ROOT, 'appinfo', 'info.xml'),
+		'utf8',
+	)
 	const match = xml.match(/<id>([^<]+)<\/id>/)
 	if (match === null) {
 		console.error('appinfo/info.xml declares no <id>')
@@ -84,10 +87,7 @@ function appId() {
  */
 function renderJs(id, translations, pluralForm) {
 	const body = Object.keys(translations)
-		.map(
-			(key) =>
-				`        ${JSON.stringify(key)}: ${JSON.stringify(translations[key])}`,
-		)
+		.map((key) => `        ${JSON.stringify(key)}: ${JSON.stringify(translations[key])}`)
 		.join(',\n')
 	return [
 		'OC.L10N.register(',
@@ -146,9 +146,7 @@ function main() {
 			: null
 
 		if (current === rendered) {
-			console.log(
-				`  ✓ l10n/${locale}.js up to date (${Object.keys(doc.translations).length} keys)`,
-			)
+			console.log(`  ✓ l10n/${locale}.js up to date (${Object.keys(doc.translations).length} keys)`)
 			continue
 		}
 		if (check) {
@@ -156,9 +154,7 @@ function main() {
 			continue
 		}
 		fs.writeFileSync(jsFile, rendered)
-		console.log(
-			`  ✎ l10n/${locale}.js written (${Object.keys(doc.translations).length} keys)`,
-		)
+		console.log(`  ✎ l10n/${locale}.js written (${Object.keys(doc.translations).length} keys)`)
 	}
 
 	if (stale.length > 0) {

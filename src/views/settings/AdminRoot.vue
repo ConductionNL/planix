@@ -1,10 +1,10 @@
 <template>
 	<div class="planninq-admin">
 		<CnVersionInfoCard
-			:app-name="'Planninq'"
-			:app-version="appVersion"
-			:is-up-to-date="true"
-			:show-update-button="true"
+			appName="Planninq"
+			:appVersion="appVersion"
+			:isUpToDate="true"
+			:showUpdateButton="true"
 			:title="t('planninq', 'Version information')"
 			:description="t('planninq', 'Information about the current Planninq installation')">
 			<template #footer>
@@ -20,6 +20,7 @@
 </template>
 
 <script>
+import { CnVersionInfoCard } from '@conduction/nextcloud-vue'
 /**
  * AdminRoot view.
  *
@@ -29,7 +30,6 @@
  * @spec openspec/changes/retrofit-2026-05-24-annotate-planix/tasks.md#task-4
  */
 import { loadState } from '@nextcloud/initial-state'
-import { CnVersionInfoCard } from '@conduction/nextcloud-vue'
 import Settings from './Settings.vue'
 import { initializeStores } from '../../store/store.js'
 
@@ -39,12 +39,14 @@ export default {
 		CnVersionInfoCard,
 		Settings,
 	},
+
 	data() {
 		return {
 			storesReady: false,
 			appVersion: loadState('planninq', 'version', 'Unknown'),
 		}
 	},
+
 	/**
 	 * @spec exclude Lifecycle bootstrap — awaits initializeStores() then flips storesReady; store wiring is spec'd in app-shell-and-data-store.
 	 */

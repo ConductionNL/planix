@@ -36,8 +36,23 @@ const MANIFEST_PATH = path.join(REPO_ROOT, 'src', 'manifest.json')
 const SCHEMA_CANDIDATES = [
 	process.env.APP_MANIFEST_SCHEMA,
 	path.join(REPO_ROOT, 'tests', 'schemas', 'app-manifest-v2.schema.json'),
-	path.join(REPO_ROOT, 'node_modules', '@conduction', 'nextcloud-vue', 'src', 'schemas', 'app-manifest-v2.schema.json'),
-	path.join(REPO_ROOT, '..', 'nextcloud-vue', 'src', 'schemas', 'app-manifest-v2.schema.json'),
+	path.join(
+		REPO_ROOT,
+		'node_modules',
+		'@conduction',
+		'nextcloud-vue',
+		'src',
+		'schemas',
+		'app-manifest-v2.schema.json',
+	),
+	path.join(
+		REPO_ROOT,
+		'..',
+		'nextcloud-vue',
+		'src',
+		'schemas',
+		'app-manifest-v2.schema.json',
+	),
 ].filter(Boolean)
 
 function findSchemaPath() {
@@ -65,10 +80,18 @@ function loadAjv() {
 	// entry point. Prefer Ajv 8 (`ajv/dist/2020`) when available; otherwise
 	// fall back to whichever ajv resolves first.
 	let Ajv2020 = null
-	let addFormats = null
+	let addFormats
 	const ajvCandidates = [
 		'ajv/dist/2020',
-		path.join(REPO_ROOT, 'node_modules', 'ajv-formats', 'node_modules', 'ajv', 'dist', '2020.js'),
+		path.join(
+			REPO_ROOT,
+			'node_modules',
+			'ajv-formats',
+			'node_modules',
+			'ajv',
+			'dist',
+			'2020.js',
+		),
 		'ajv',
 	]
 	for (const candidate of ajvCandidates) {
@@ -95,14 +118,38 @@ function loadAjv() {
 	return { Ajv: Ajv2020, addFormats }
 }
 
-function structuralLint(manifest) {
+/**
+ * Page types the structural fallback will accept.
+ *
+ * Read from the SCHEMA when one was loaded, so this path cannot drift from the
+ * contract the Ajv path enforces. It had: the hardcoded set below stopped at
+ * `files` while the vendored schema was already at `roadmap`, `flow` and
+ * `reports`, so a legitimate page type failed here and only here. A fallback
+ * that disagrees with the schema is worse than no fallback, because it fails a
+ * manifest that is correct.
+ *
+ * @param {object|null} schema The loaded manifest schema, if any.
+ * @return {Set<string>|null} The allowed page types, or null to skip the check.
+ */
+function pageTypesFrom(schema) {
+	const e = schema?.$defs?.page?.properties?.type?.enum
+	return Array.isArray(e) && e.length > 0 ? new Set(e) : null
+}
+
+function structuralLint(manifest, schema = null) {
 	const errors = []
 	if (!manifest.version || typeof manifest.version !== 'string') {
 		errors.push('top-level: version (string) is required')
 	}
-	if (!Array.isArray(manifest.menu)) errors.push('top-level: menu (array) is required')
-	if (!Array.isArray(manifest.pages)) errors.push('top-level: pages (array) is required')
-	const allowedTypes = new Set(['index', 'detail', 'dashboard', 'logs', 'settings', 'chat', 'files', 'custom'])
+	if (!Array.isArray(manifest.menu)) {
+		errors.push('top-level: menu (array) is required')
+	}
+	if (!Array.isArray(manifest.pages)) {
+		errors.push('top-level: pages (array) is required')
+	}
+	// null when no schema was loadable: the type check is then SKIPPED rather
+	// than run against a guess, so this path never invents a rule of its own.
+	const allowedTypes = pageTypesFrom(schema)
 	const seenIds = new Set()
 	for (let i = 0; i < (manifest.pages || []).length; i++) {
 		const page = manifest.pages[i]
@@ -115,11 +162,13 @@ function structuralLint(manifest) {
 				errors.push(`pages[${i}]: missing required string field "${required}"`)
 			}
 		}
-		if (page.type && !allowedTypes.has(page.type)) {
-			errors.push(`pages[${i}].type: "${page.type}" not in v1.2 enum`)
+		if (page.type && allowedTypes && !allowedTypes.has(page.type)) {
+			errors.push(`pages[${i}].type: "${page.type}" is not in the schema's page-type enum`)
 		}
 		if (page.id) {
-			if (seenIds.has(page.id)) errors.push(`pages[${i}].id: duplicate "${page.id}"`)
+			if (seenIds.has(page.id)) {
+				errors.push(`pages[${i}].id: duplicate "${page.id}"`)
+			}
 			seenIds.add(page.id)
 		}
 		if (page.type === 'custom' && !page.component) {
@@ -149,7 +198,9 @@ function main() {
 			process.exit(0)
 		}
 		console.error('[validate-manifest] structural lint: FAIL')
-		for (const err of errors) console.error(`  - ${err}`)
+		for (const err of errors) {
+			console.error(`  - ${err}`)
+		}
 		process.exit(1)
 	}
 	console.log(`[validate-manifest] schema: ${schemaPath}`)
@@ -158,13 +209,15 @@ function main() {
 
 	const { Ajv, addFormats } = loadAjv()
 	if (!Ajv) {
-		const errors = structuralLint(manifest)
+		const errors = structuralLint(manifest, schema)
 		if (errors.length === 0) {
 			console.log('[validate-manifest] structural lint (no Ajv): PASS (0 issues)')
 			process.exit(0)
 		}
 		console.error('[validate-manifest] structural lint (no Ajv): FAIL')
-		for (const err of errors) console.error(`  - ${err}`)
+		for (const err of errors) {
+			console.error(`  - ${err}`)
+		}
 		process.exit(1)
 	}
 

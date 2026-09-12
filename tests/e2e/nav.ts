@@ -30,9 +30,11 @@
  * user does. In-app navigation always produces URLs the router accepts.
  */
 
-import { expect, type Page } from '@playwright/test'
-import { BASE_URL } from './base-url'
-import { FIXTURE } from './fixtures/seed'
+import type { Page } from '@playwright/test'
+
+import { expect } from '@playwright/test'
+import { BASE_URL } from './base-url.ts'
+import { FIXTURE } from './fixtures/seed.ts'
 
 /** The planninq SPA entry point. Safe with or without `index.php`. */
 export const PLANNINQ_ROOT = `${BASE_URL}/index.php/apps/planninq/`
@@ -56,7 +58,9 @@ export async function openFixtureProjectBoard(page: Page): Promise<string> {
 	// Use the app's own navigation entry rather than a hand-built URL.
 	await page.locator('#app-navigation-vue a[title="Projects"]').click()
 
-	const row = page.locator('.project-list-item', { hasText: FIXTURE.projectTitle })
+	const row = page.locator('.project-list-item', {
+		hasText: FIXTURE.projectTitle,
+	})
 	await expect(row).toHaveCount(1)
 	await row.click()
 
@@ -81,13 +85,26 @@ export async function openFixtureProjectBoard(page: Page): Promise<string> {
  */
 export async function openPlanninqSettingsDialog(page: Page): Promise<void> {
 	const nav = page.locator('#app-navigation-vue')
-	const item = nav.locator('a[title="Settings"]')
 
-	// NcAppNavigationSettings is a collapsible footer section: its toggle button
-	// also answers to the name "Settings", and the entry itself is hidden while
-	// the section is collapsed. Expand first when needed.
-	if (!(await item.isVisible().catch(() => false))) {
-		await nav.getByRole('button', { name: 'Settings', exact: true }).click()
+	// Target the library's OWN test ids, not label text.
+	//
+	// `a[title="Settings"]` matched nothing here. CnAppNav auto-prepends the
+	// entry that opens the app's NcAppSettingsDialog and names it "Personal
+	// settings", and that name is translated, so a title selector is a language
+	// assertion this suite has no business making. Both the foldout and the
+	// entry carry stable test ids for exactly this.
+	const foldout = nav.locator('[data-testid="cn-nav-settings"]')
+	const entry = nav.locator('[data-testid="cn-nav-personal-settings"]')
+
+	// The foldout is collapsed until its gear button is pressed, and the entry
+	// is not in the DOM until then.
+	if (!(await entry.isVisible().catch(() => false))) {
+		await foldout.locator('button').first().click()
 	}
-	await item.click()
+
+	// 🔴 Click the <a>, not the test id. `data-testid` lands on
+	// NcAppNavigationItem's ROOT, which is an <li> — clicking that is a silent
+	// no-op, and the failure then surfaces several lines later on whatever the
+	// dialog was supposed to show.
+	await entry.locator('a').first().click()
 }

@@ -39,7 +39,7 @@ export function parseDuration(raw) {
 		return null
 	}
 
-	let minutes = null
+	let minutes
 
 	// Combined "<h>h <m>m" (minutes part optional spacing).
 	const hm = s.match(/^(\d+(?:\.\d+)?)\s*h\s*(\d+(?:\.\d+)?)\s*m$/)

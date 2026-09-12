@@ -32,6 +32,8 @@
 </template>
 
 <script>
+import { getCurrentUser } from '@nextcloud/auth'
+import { showError, showSuccess } from '@nextcloud/dialogs'
 /**
  * ProjectDeleteDialog.
  *
@@ -41,10 +43,8 @@
  * @spec openspec/changes/retrofit-2026-05-24-annotate-planix/tasks.md#task-9
  */
 import { NcButton, NcDialog, NcLoadingIcon } from '@nextcloud/vue'
-import { showSuccess, showError } from '@nextcloud/dialogs'
-import { getCurrentUser } from '@nextcloud/auth'
-import { useProjectsStore } from '../store/projects.js'
 import { useSettingsStore } from '../store/modules/settings.js'
+import { useProjectsStore } from '../store/projects.js'
 
 export default {
 	name: 'ProjectDeleteDialog',
@@ -108,7 +108,9 @@ export default {
 		 * @spec openspec/changes/retrofit-2026-05-24-annotate-planix/tasks.md#task-9
 		 */
 		async confirm() {
-			if (!this.canDelete) return
+			if (!this.canDelete) {
+				return
+			}
 			this.loading = true
 			try {
 				const store = useProjectsStore()

@@ -9,11 +9,11 @@
  *
  * @spec openspec/specs/task-collaboration.md
  */
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
-	taskCollaborationSidebarConfig,
-	TASK_SIDEBAR_HIDDEN_TABS,
 	PLANNINQ_REGISTER,
+	TASK_SIDEBAR_HIDDEN_TABS,
+	taskCollaborationSidebarConfig,
 } from '../../src/utils/taskHelpers.js'
 
 describe('taskCollaborationSidebarConfig', () => {

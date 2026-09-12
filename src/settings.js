@@ -1,7 +1,7 @@
+import { loadTranslations, translatePlural as n, translate as t } from '@nextcloud/l10n'
 import { createApp } from 'vue'
-import { translate as t, translatePlural as n, loadTranslations } from '@nextcloud/l10n'
-import pinia from './pinia.js'
 import AdminRoot from './views/settings/AdminRoot.vue'
+import pinia from './pinia.js'
 
 /**
  * Bootstrap the Planninq admin-settings panel.

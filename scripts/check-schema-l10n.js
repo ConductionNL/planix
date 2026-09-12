@@ -66,10 +66,14 @@ const BASELINE = path.join(REPO_ROOT, 'l10n', '.schema-l10n-baseline.json')
  * @return {string[]} absolute paths
  */
 function schemaFiles(dir) {
-	if (!fs.existsSync(dir)) return []
+	if (!fs.existsSync(dir)) {
+		return []
+	}
 	return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
 		const full = path.join(dir, entry.name)
-		if (entry.isDirectory()) return schemaFiles(full)
+		if (entry.isDirectory()) {
+			return schemaFiles(full)
+		}
 		return entry.name.endsWith('.json') ? [full] : []
 	})
 }
@@ -83,34 +87,51 @@ function schemaFiles(dir) {
  */
 function collect(node, where, sink) {
 	if (Array.isArray(node)) {
-		for (const item of node) collect(item, where, sink)
+		for (const item of node) {
+			collect(item, where, sink)
+		}
 		return
 	}
-	if (node === null || typeof node !== 'object') return
+	if (node === null || typeof node !== 'object') {
+		return
+	}
 
 	const remember = (value, what) => {
-		if (typeof value !== 'string' || value.trim() === '') return
-		if (!sink.has(value)) sink.set(value, `${where}:${what}`)
+		if (typeof value !== 'string' || value.trim() === '') {
+			return
+		}
+		if (!sink.has(value)) {
+			sink.set(value, `${where}:${what}`)
+		}
 	}
 
 	const props = node.properties
 	if (props !== null && typeof props === 'object' && !Array.isArray(props)) {
 		remember(node.title, 'schema title')
 		for (const [key, prop] of Object.entries(props)) {
-			if (prop === null || typeof prop !== 'object') continue
+			if (prop === null || typeof prop !== 'object') {
+				continue
+			}
 			remember(prop.title, `${key}.title`)
 			remember(prop.description, `${key}.description`)
 			for (const source of [prop, prop.items]) {
-				if (source === null || typeof source !== 'object') continue
+				if (source === null || typeof source !== 'object') {
+					continue
+				}
 				const labels = source['x-enum-labels']
-				if (labels === null || typeof labels !== 'object') continue
-				for (const label of Object.values(labels))
+				if (labels === null || typeof labels !== 'object') {
+					continue
+				}
+				for (const label of Object.values(labels)) {
 					remember(label, `${key}.x-enum-labels`)
+				}
 			}
 		}
 	}
 
-	for (const value of Object.values(node)) collect(value, where, sink)
+	for (const value of Object.values(node)) {
+		collect(value, where, sink)
+	}
 }
 
 function main() {
@@ -130,11 +151,8 @@ function main() {
 
 	let covered = new Set()
 	try {
-		covered = new Set(
-			Object.keys(
-				JSON.parse(fs.readFileSync(CATALOGUE, 'utf8')).translations || {},
-			),
-		)
+		covered = new Set(Object.keys(JSON.parse(fs.readFileSync(CATALOGUE, 'utf8')).translations
+			|| {}))
 	} catch {
 		// no catalogue yet — then everything is uncovered, which the baseline records
 	}
@@ -142,7 +160,9 @@ function main() {
 	const uncovered = [...strings.keys()].filter((s) => !covered.has(s)).sort()
 
 	if (list) {
-		for (const s of uncovered) console.log(`${strings.get(s)}\n  ${s}`)
+		for (const s of uncovered) {
+			console.log(`${strings.get(s)}\n  ${s}`)
+		}
 	}
 
 	if (update) {
@@ -150,44 +170,32 @@ function main() {
 			BASELINE,
 			JSON.stringify({ uncovered: uncovered.length }, null, 2) + '\n',
 		)
-		console.log(
-			`baseline written: ${uncovered.length} uncovered schema string(s)`,
-		)
+		console.log(`baseline written: ${uncovered.length} uncovered schema string(s)`)
 		return
 	}
 
 	if (!fs.existsSync(BASELINE)) {
-		console.error(
-			'No baseline. Run `npm run check:schema-l10n -- --update` and commit it.',
-		)
+		console.error('No baseline. Run `npm run check:schema-l10n -- --update` and commit it.')
 		process.exit(1)
 	}
 	const baseline = JSON.parse(fs.readFileSync(BASELINE, 'utf8')).uncovered
 
-	console.log(
-		`${strings.size} schema string(s); ${uncovered.length} uncovered, baseline ${baseline}`,
-	)
+	console.log(`${strings.size} schema string(s); ${uncovered.length} uncovered, baseline ${baseline}`)
 
 	if (uncovered.length > baseline) {
 		const added = uncovered.length - baseline
 		console.error('')
-		console.error(
-			`${added} schema string(s) added with no catalogue key — they will render`,
-		)
+		console.error(`${added} schema string(s) added with no catalogue key — they will render`)
 		console.error('in English inside an otherwise translated form.')
 		console.error('')
-		console.error(
-			'Add them to l10n/en.json (identity) and l10n/nl.json (translated), then',
-		)
+		console.error('Add them to l10n/en.json (identity) and l10n/nl.json (translated), then')
 		console.error('run `npm run l10n:build`. See what is uncovered with:')
 		console.error('  node scripts/check-schema-l10n.js --list')
 		process.exit(1)
 	}
 
 	if (uncovered.length < baseline) {
-		console.log(
-			`${baseline - uncovered.length} fewer than the baseline — lower it with:`,
-		)
+		console.log(`${baseline - uncovered.length} fewer than the baseline — lower it with:`)
 		console.log('  npm run check:schema-l10n -- --update')
 	}
 }

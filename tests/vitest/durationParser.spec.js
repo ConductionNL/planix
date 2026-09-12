@@ -6,8 +6,11 @@
  *
  * @spec openspec/specs/time-tracking.md
  */
-import { describe, it, expect } from 'vitest'
-import { parseDuration, formatDuration } from '../../src/utils/durationParser.js'
+import { describe, expect, it } from 'vitest'
+import {
+	formatDuration,
+	parseDuration,
+} from '../../src/utils/durationParser.js'
 
 describe('parseDuration — accepted formats', () => {
 	it('parses "2h 30m" to 150 minutes', () => {
@@ -37,12 +40,21 @@ describe('parseDuration — accepted formats', () => {
 })
 
 describe('parseDuration — invalid input returns null', () => {
-	it.each(['lots', '-5', '0', '', '   ', 'h', 'm', '2x', 'abc30m', null, undefined])(
-		'returns null for %p',
-		(input) => {
-			expect(parseDuration(input)).toBeNull()
-		},
-	)
+	it.each([
+		'lots',
+		'-5',
+		'0',
+		'',
+		'   ',
+		'h',
+		'm',
+		'2x',
+		'abc30m',
+		null,
+		undefined,
+	])('returns null for %p', (input) => {
+		expect(parseDuration(input)).toBeNull()
+	})
 })
 
 describe('formatDuration', () => {

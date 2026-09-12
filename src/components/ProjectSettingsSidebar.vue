@@ -76,8 +76,8 @@
 			<div class="project-settings-sidebar__section">
 				<MemberSearch
 					v-if="project"
-					:project-id="project.id"
-					:existing-members="project.members || []"
+					:projectId="project.id"
+					:existingMembers="project.members || []"
 					@added="onMemberAdded" />
 
 				<ul class="project-settings-sidebar__members" role="list">
@@ -167,7 +167,7 @@
 		<!-- Dialogs -->
 		<ProjectLeaveDialog
 			v-if="showLeaveDialog && project"
-			:project-id="project.id"
+			:projectId="project.id"
 			@close="showLeaveDialog = false"
 			@left="onLeft" />
 
@@ -180,6 +180,8 @@
 </template>
 
 <script>
+import { getCurrentUser } from '@nextcloud/auth'
+import { showError, showSuccess } from '@nextcloud/dialogs'
 /**
  * ProjectSettingsSidebar.
  *
@@ -198,20 +200,17 @@ import {
 	NcAvatar,
 	NcButton,
 	NcLoadingIcon,
-	NcTextField,
 	NcTextArea,
+	NcTextField,
 } from '@nextcloud/vue'
 import AccountGroupOutline from 'vue-material-design-icons/AccountGroupOutline.vue'
 import AlertCircleOutline from 'vue-material-design-icons/AlertCircleOutline.vue'
 import CloseIcon from 'vue-material-design-icons/Close.vue'
 import PencilIcon from 'vue-material-design-icons/Pencil.vue'
-
-import { getCurrentUser } from '@nextcloud/auth'
-import { showSuccess, showError } from '@nextcloud/dialogs'
-import { useProjectsStore } from '../store/projects.js'
-import MemberSearch from './MemberSearch.vue'
-import ProjectLeaveDialog from '../dialogs/ProjectLeaveDialog.vue'
 import ProjectDeleteDialog from '../dialogs/ProjectDeleteDialog.vue'
+import ProjectLeaveDialog from '../dialogs/ProjectLeaveDialog.vue'
+import MemberSearch from './MemberSearch.vue'
+import { useProjectsStore } from '../store/projects.js'
 
 export default {
 	name: 'ProjectSettingsSidebar',
@@ -268,6 +267,7 @@ export default {
 		projectsStore() {
 			return useProjectsStore()
 		},
+
 		/**
 		 * @spec exclude Auth passthrough — returns the current user's UID.
 		 */

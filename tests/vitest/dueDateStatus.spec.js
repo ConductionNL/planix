@@ -9,7 +9,7 @@
  *
  * @spec openspec/specs/kanban-board.md
  */
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { dueDateStatus } from '../../src/utils/taskHelpers.js'
 
 // Fixed clock so the suite is deterministic regardless of when it runs.

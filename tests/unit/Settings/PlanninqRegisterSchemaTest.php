@@ -140,7 +140,7 @@ class PlanninqRegisterSchemaTest extends TestCase {
 	 * @return void
 	 */
 	public function testAllDataSchemasHaveAuthorizationBlocks(): void {
-		$schemasRequiringAuth = ['project', 'task', 'column', 'timeEntry'];
+		$schemasRequiringAuth = ['project', 'task', 'column', 'plannedTimeEntry'];
 
 		foreach ($schemasRequiringAuth as $schemaSlug) {
 			self::assertArrayHasKey(
@@ -260,7 +260,7 @@ class PlanninqRegisterSchemaTest extends TestCase {
 	 * @return void
 	 */
 	public function testTimeEntryAuthorizationRestrictsWriteToOwningUser(): void {
-		$auth = $this->register['components']['schemas']['timeEntry']['authorization'];
+		$auth = $this->register['components']['schemas']['plannedTimeEntry']['authorization'];
 
 		foreach (['update', 'delete'] as $action) {
 			$hasUserRule = false;
@@ -357,17 +357,18 @@ class PlanninqRegisterSchemaTest extends TestCase {
 	}//end testDueSoonRecipientFieldExistsOnSchema()
 
 	/**
-	 * The register MUST declare exactly the six expected schemas.
+	 * The register MUST declare exactly the seven expected schemas.
 	 *
-	 * Adds `dependency` to the previously exact set of five; `example` must
-	 * not be present.
+	 * Adds `projectPhase` to the previous exact set of six, when planninq took
+	 * over the project work breakdown structure pipelinq had built. `example`
+	 * must not be present.
 	 *
 	 * @return void
 	 *
 	 * @spec openspec/changes/task-dependencies/specs/register-schemas/spec.md
 	 */
-	public function testRegisterDeclaresExactlySixSchemas(): void {
-		$expected = ['task', 'project', 'column', 'timeEntry', 'label', 'dependency'];
+	public function testRegisterDeclaresExactlySevenSchemas(): void {
+		$expected = ['task', 'project', 'projectPhase', 'column', 'plannedTimeEntry', 'label', 'dependency'];
 
 		$listed = $this->register['components']['registers']['planninq']['schemas'];
 		sort($listed);
@@ -376,7 +377,7 @@ class PlanninqRegisterSchemaTest extends TestCase {
 		self::assertSame(
 			expected: $sortedExpected,
 			actual: $listed,
-			message: 'register schema list must be exactly the six expected schemas'
+			message: 'register schema list must be exactly the seven expected schemas'
 		);
 
 		$defined = array_keys($this->register['components']['schemas']);
@@ -384,7 +385,7 @@ class PlanninqRegisterSchemaTest extends TestCase {
 		self::assertSame(
 			expected: $sortedExpected,
 			actual: $defined,
-			message: 'components.schemas must define exactly the six expected schemas'
+			message: 'components.schemas must define exactly the seven expected schemas'
 		);
 
 		self::assertArrayNotHasKey(
@@ -393,7 +394,7 @@ class PlanninqRegisterSchemaTest extends TestCase {
 			message: 'placeholder example schema must not be present'
 		);
 
-	}//end testRegisterDeclaresExactlySixSchemas()
+	}//end testRegisterDeclaresExactlySevenSchemas()
 
 	/**
 	 * The dependency schema MUST require blocker + blocked as UUID strings.

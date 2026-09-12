@@ -9,7 +9,7 @@
 						v-model="title"
 						:label="t('planninq', 'Title')"
 						:error="!!titleError"
-						:helper-text="titleError"
+						:helperText="titleError"
 						required />
 				</div>
 
@@ -28,7 +28,7 @@
 							v-model="color"
 							:label="t('planninq', 'Hex color')"
 							:error="!!colorError"
-							:helper-text="colorError || t('planninq', 'Six-digit hex code, e.g. #4376FC')" />
+							:helperText="colorError || t('planninq', 'Six-digit hex code, e.g. #4376FC')" />
 					</div>
 				</div>
 
@@ -62,6 +62,7 @@
 </template>
 
 <script>
+import { showError } from '@nextcloud/dialogs'
 /**
  * LabelEditDialog.
  *
@@ -73,7 +74,6 @@
  * @spec openspec/changes/label-management-admin/specs/admin-user-settings/spec.md
  */
 import { NcButton, NcDialog, NcLoadingIcon, NcTextField } from '@nextcloud/vue'
-import { showError } from '@nextcloud/dialogs'
 import { useLabelsStore } from '../store/labels.js'
 import {
 	DEFAULT_LABEL_COLOR as DEFAULT_COLOR,
@@ -194,7 +194,7 @@ export default {
 					await store.createLabel(payload)
 				}
 				this.$emit('saved')
-			} catch (err) {
+			} catch {
 				this.submitError = store.error || this.t('planninq', 'Failed to save label')
 				showError(this.submitError)
 			} finally {

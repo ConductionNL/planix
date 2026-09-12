@@ -1,8 +1,11 @@
 <template>
+	<!-- `no-close` replaces the deprecated `can-close`, and it is the INVERSE of it:
+	     the dialog must refuse to close WHILE loading, which is what the old
+	     `:canClose="!loading"` said. -->
 	<NcDialog
 		v-model:open="open"
 		:name="t('planninq', 'New project')"
-		:can-close="!loading"
+		:noClose="loading"
 		@close="$emit('close')">
 		<template #default>
 			<form class="project-creation-dialog__form" @submit.prevent="submit">
@@ -78,6 +81,7 @@
 </template>
 
 <script>
+import { showError, showSuccess } from '@nextcloud/dialogs'
 /**
  * ProjectCreationDialog.
  *
@@ -86,8 +90,7 @@
  *
  * @spec openspec/changes/retrofit-2026-05-24-annotate-planix/tasks.md#task-12
  */
-import { NcButton, NcDialog, NcTextField, NcTextArea, NcLoadingIcon } from '@nextcloud/vue'
-import { showError, showSuccess } from '@nextcloud/dialogs'
+import { NcButton, NcDialog, NcLoadingIcon, NcTextArea, NcTextField } from '@nextcloud/vue'
 import { useProjectsStore } from '../store/projects.js'
 
 export default {
@@ -123,12 +126,14 @@ export default {
 		projectsStore() {
 			return useProjectsStore()
 		},
+
 		/**
 		 * @spec exclude Store passthrough — proxies projectsStore.loading.
 		 */
 		loading() {
 			return this.projectsStore.loading
 		},
+
 		isValid() {
 			return this.form.title.trim().length > 0
 		},
@@ -155,7 +160,9 @@ export default {
 		 */
 		async submit() {
 			this.titleTouched = true
-			if (!this.isValid || this.loading) return
+			if (!this.isValid || this.loading) {
+				return
+			}
 
 			try {
 				const project = await this.projectsStore.createProject({

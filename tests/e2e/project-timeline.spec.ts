@@ -29,8 +29,8 @@
  * failing the suite (shared-instance isolation — see the change's verify notes).
  */
 
-import { test, expect } from '@playwright/test'
-import { openFixtureProjectBoard } from './nav'
+import { expect, test } from '@playwright/test'
+import { openFixtureProjectBoard } from './nav.ts'
 
 // NOTE — this spec used to resolve its project through
 //   page.goto(`${NC}/index.php/apps/planninq/#/projects`)
@@ -43,7 +43,9 @@ import { openFixtureProjectBoard } from './nav'
 // See tests/e2e/nav.ts.
 
 test.describe('Project timeline (Gantt) — read-only view', () => {
-	test('opens the timeline from the board and renders the timeline surface', async ({ page }) => {
+	test('opens the timeline from the board and renders the timeline surface', async ({
+		page,
+	}) => {
 		const projectId = await openFixtureProjectBoard(page)
 
 		// Reach the timeline the way a user does — via the board's own action.
@@ -60,9 +62,21 @@ test.describe('Project timeline (Gantt) — read-only view', () => {
 		const unscheduled = page.locator('.project-timeline__unscheduled')
 		const empty = page.locator('.empty-content, .project-timeline__loading')
 		const anySurface = await Promise.race([
-			chart.first().waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false),
-			unscheduled.first().waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false),
-			empty.first().waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false),
+			chart
+				.first()
+				.waitFor({ state: 'visible', timeout: 8000 })
+				.then(() => true)
+				.catch(() => false),
+			unscheduled
+				.first()
+				.waitFor({ state: 'visible', timeout: 8000 })
+				.then(() => true)
+				.catch(() => false),
+			empty
+				.first()
+				.waitFor({ state: 'visible', timeout: 8000 })
+				.then(() => true)
+				.catch(() => false),
 		])
 		expect(anySurface).toBeTruthy()
 	})

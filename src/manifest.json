@@ -12,11 +12,21 @@
         },
         {
           "id": "demo-data",
-          "type": "run-action",
-          "action": "install-demo-data",
-          "title": "Demo data (optional)",
+          "type": "choice",
+          "display": "cards",
+          "optionsSource": "datasets",
+          "configKey": "demo_dataset",
+          "title": "Load example data?",
           "required": false,
-          "body": "Load a small example dataset so the lists, detail pages and dashboards show a working product straight away. The data is obviously sample data, it is safe to run more than once, and it can be removed afterwards. Skip this on a production install."
+          "body": "Example data fills the lists, detail pages and dashboards so you can see the app working straight away. Pick \"None\" on a production install."
+        },
+        {
+          "id": "load-demo-data",
+          "type": "run-action",
+          "action": "load-demo-data",
+          "title": "Load the example data",
+          "required": false,
+          "body": "Loads what you picked. The data is obviously sample data, it is safe to run more than once, and you can delete it afterwards."
         },
         {
           "id": "done",
@@ -26,8 +36,208 @@
       ]
     },
   "version": "0.1.0",
+  "dependencies": ["openregister"],
+  "store": {
+    "_note": "Configuration exchange, not rows. There is deliberately NO `installable` allowlist: a set exists to introduce schemas the instance does not have YET, so listing schemas planninq already owns would refuse exactly the sets worth installing. \u26a0\ufe0f An EMPTY `installable` means install NOTHING, not install anything.",
+    "types": [
+      "openregister.configset",
+      "openregister.flows"
+    ],
+    "localRegister": "planninq"
+  },
+  "menu": [
+    { "id": "Dashboard", "label": "Dashboard", "icon": "ViewDashboardOutline", "route": "Dashboard", "order": 10 },
+    { "id": "Boards", "label": "Boards", "icon": "ViewDashboardOutline", "route": "Boards", "order": 20 },
+    { "id": "Projects", "label": "Projects", "icon": "FolderOutline", "route": "Projects", "order": 30 },
+    { "id": "Timesheet", "label": "Timesheet", "icon": "ClockOutline", "route": "Timesheet", "order": 50 },
+    { "id": "Documentation", "label": "Documentation", "icon": "BookOpenVariantOutline", "href": "https://planix.conduction.nl", "section": "footer", "order": 90 },
+    { "id": "StoreMenu", "label": "Store", "icon": "StoreOutline", "route": "Store", "section": "footer", "order": 92 },
+    { "id": "ReportsMenu", "label": "Reports", "icon": "ChartBoxOutline", "route": "Reports", "section": "footer", "order": 95 },
+    { "id": "FeaturesRoadmapMenu", "label": "Features & roadmap", "icon": "MapMarkerPath", "route": "FeaturesRoadmap", "section": "footer", "order": 100 },
+    { "id": "FlowsMenu", "label": "Flows", "icon": "SitemapOutline", "route": "Flows", "section": "settings", "order": 96 }
+  ],
+  "pages": [
+    {
+      "id": "Store",
+      "route": "/store",
+      "type": "store",
+      "title": "Store",
+      "config": {
+        "app": "planninq",
+        "title": "Store",
+        "description": "Install planning configurations that other organisations have published: a project template, a set of stages, or the flows behind them."
+      },
+      "_note": "ADR-114 Decision 4 / ADR-080. Declarative: openregister hosts the store plane, so this app writes NO store controller. With no registry configured the page renders the app's built-in items and makes NO network call."
+    },
+    {
+      "id": "Dashboard",
+      "route": "/",
+      "type": "dashboard",
+      "title": "Dashboard",
+      "config": {
+        "widgets": [
+          {
+            "id": "kpi-active-projects",
+            "type": "stat",
+            "title": "Active projects",
+            "content": {
+              "label": "Active projects",
+              "icon": "FolderOutline",
+              "route": { "name": "Projects" },
+              "format": { "style": "decimal", "decimals": 0 },
+              "source": {
+                "register": "planninq",
+                "schema": "project",
+                "metric": "count",
+                "filter": { "status": "active" }
+              }
+            }
+          },
+          {
+            "id": "kpi-member-projects",
+            "type": "stat",
+            "title": "Projects I am in",
+            "content": {
+              "label": "Projects I am in",
+              "icon": "AccountGroup",
+              "route": { "name": "Projects" },
+              "format": { "style": "decimal", "decimals": 0 },
+              "source": {
+                "register": "planninq",
+                "schema": "project",
+                "metric": "count"
+              }
+            }
+          },
+          {
+            "id": "kpi-archived-projects",
+            "type": "stat",
+            "title": "Archived projects",
+            "content": {
+              "label": "Archived projects",
+              "icon": "History",
+              "route": { "name": "Projects" },
+              "format": { "style": "decimal", "decimals": 0 },
+              "source": {
+                "register": "planninq",
+                "schema": "project",
+                "metric": "count",
+                "filter": { "status": "archived" }
+              }
+            }
+          },
+          {
+            "id": "dashboard-panels",
+            "type": "project-panels",
+            "title": "My projects",
+            "_note": "The two non-KPI panels (My projects, Quick actions), rendered by the `project-panels` widget type, which src/registry.js maps to DashboardPanels. CnWidgetGrid resolves a manifest widget by its TYPE against the app registry before the library catalog, so the key there is the type string, not this id. DashboardPanels is a plain component, NOT a nested CnDashboardPage: hydra gate-15 rejects a dashboard inside a dashboard."
+          }
+        ],
+        "layout": [
+          { "id": "1", "widgetId": "kpi-active-projects", "gridX": 0, "gridY": 0, "gridWidth": 4, "gridHeight": 2, "showTitle": false },
+          { "id": "2", "widgetId": "kpi-member-projects", "gridX": 4, "gridY": 0, "gridWidth": 4, "gridHeight": 2, "showTitle": false },
+          { "id": "3", "widgetId": "kpi-archived-projects", "gridX": 8, "gridY": 0, "gridWidth": 4, "gridHeight": 2, "showTitle": false },
+          { "id": "4", "widgetId": "dashboard-panels", "gridX": 0, "gridY": 2, "gridWidth": 12, "gridHeight": 5, "showTitle": false, "borderless": true }
+        ]
+      }
+    },
+    { "id": "Projects", "_note": "Project index rendered as cards with a client-side status chip filter over filteredProjects, plus a free-text field. The chip row is a filter surface CnIndexPage does not express, so the list is a host-app SFC.", "route": "/projects", "type": "custom", "title": "Projects", "component": "ProjectList", "config": {} },
+    { "id": "ProjectBoard", "_note": "Bespoke Kanban board: one column per project status, with drag-to-transition between columns and a per-card move menu listing the other columns as targets. No v2 primitive renders a column-per-status board or owns the drop-to-transition write.", "route": "/projects/:id", "type": "custom", "title": "Project board", "component": "ProjectBoard", "config": {} },
+    { "id": "ProjectBacklog", "_note": "Backlog under a project: a parent breadcrumb back to the board above an ordered task list scoped to :id. The parent-scoped header is the part CnIndexPage does not carry.", "route": "/projects/:id/backlog", "type": "custom", "title": "Backlog", "component": "ProjectBacklog", "config": {} },
+    { "id": "ProjectTimeline", "_note": "Gantt over a project's tasks: positioned bars plus dependency arrows drawn between them, fed by /api/timeline. The roadmap type renders milestones on a track and has no vocabulary for task bars with dependency edges.", "route": "/projects/:id/timeline", "type": "custom", "title": "Timeline", "component": "ProjectTimeline", "config": {} },
+    { "id": "TaskDetail", "_note": "Task detail that combines a CnObjectSidebar with an inline time-entry log written against the same task. A detail page renders the record; the embedded logging surface is what makes this custom.", "route": "/projects/:id/tasks/:taskId", "type": "custom", "title": "Task", "component": "TaskDetail", "config": {} },
+    { "id": "Timesheet", "_note": "Week timesheet: entries grouped per day with inline edit and a project selector. A grouped, editable grid over time entries, which no v2 list primitive expresses.", "route": "/timesheet", "type": "custom", "title": "Timesheet", "component": "Timesheet", "config": {} },
+    { "id": "Boards", "_note": "Board picker: the projects a user can open a board for, as entry points rather than records. The cards route to /projects/:id and expose no record actions.", "route": "/boards", "type": "custom", "title": "Boards", "component": "Boards", "config": {} },
+    { "id": "Portfolio", "_note": "Capacity across projects: one row per assignee aggregating allocation over the projects they appear in. An aggregate view with no single backing record, so it is neither an index nor a dashboard of widgets.", "route": "/portfolio", "type": "custom", "title": "Portfolio", "component": "Portfolio", "config": {} },
+    {
+      "id": "Reports",
+      "_note": "ADR-112 / ADR-114 Decision 3. Portfolio already existed and moves here from the main navigation. The other two are new, and are declarative type:dashboard pages over the app's own register — no per-app component and no per-app controller, the same reasoning that put the Store in openregister.",
+      "route": "/reports",
+      "type": "reports",
+      "title": "Reports",
+      "config": {
+        "description": "Pick a report to open it.",
+        "categories": { "work": "Work", "people": "People and time" },
+        "cards": [
+          { "id": "TaskStatusReport", "label": "Task status", "description": "What is open, what is blocked, and what is overdue.", "icon": "CheckboxMarkedCircleOutline", "category": "work", "route": "TaskStatusReport" },
+          { "id": "Portfolio", "label": "Capacity", "description": "How allocation is spread across the people working on projects.", "icon": "BriefcaseOutline", "category": "people", "route": "Portfolio" },
+          { "id": "TimeSpentReport", "label": "Time spent", "description": "Hours logged, and the projects they went to.", "icon": "TimerOutline", "category": "people", "route": "TimeSpentReport" }
+        ]
+      }
+    },
+    {
+      "id": "TaskStatusReport",
+      "_note": "Declarative. Every filter here is scalar equality, which is the only kind OpenRegister's aggregation endpoint can evaluate: a multi-value or relative-date filter is accepted and then silently not applied, which is how decidiq's KPI cards came to show wrong numbers.",
+      "route": "/reports/tasks",
+      "type": "dashboard",
+      "title": "Task status",
+      "config": {
+        "widgets": [
+          { "id": "tasks-open", "title": "Open", "type": "stat", "content": { "label": "Open", "icon": "CheckboxMarkedCircleOutline", "route": { "name": "Boards" }, "format": { "style": "decimal", "decimals": 0 }, "source": { "register": "planninq", "schema": "task", "metric": "count", "filter": { "status": "open" } } } },
+          { "id": "tasks-in-progress", "title": "In progress", "type": "stat", "content": { "label": "In progress", "icon": "TimerOutline", "route": { "name": "Boards" }, "format": { "style": "decimal", "decimals": 0 }, "source": { "register": "planninq", "schema": "task", "metric": "count", "filter": { "status": "in_progress" } } } },
+          { "id": "tasks-blocked", "title": "Blocked", "type": "stat", "content": { "label": "Blocked", "icon": "History", "route": { "name": "Boards" }, "format": { "style": "decimal", "decimals": 0 }, "source": { "register": "planninq", "schema": "task", "metric": "count", "filter": { "status": "blocked" } } } },
+          { "id": "tasks-by-status", "title": "By status", "type": "chart", "content": { "chartKind": "donut", "legendPosition": "bottom", "emptyLabel": "No tasks yet", "dataSource": { "register": "planninq", "schema": "task", "aggregate": { "groupBy": "status", "metric": "count" } } } },
+          { "id": "tasks-by-priority", "title": "By priority", "type": "chart", "content": { "chartKind": "donut", "legendPosition": "bottom", "emptyLabel": "No tasks yet", "dataSource": { "register": "planninq", "schema": "task", "aggregate": { "groupBy": "priority", "metric": "count" } } } },
+          { "id": "tasks-due-soonest", "title": "Due soonest", "type": "object-table", "content": { "register": "planninq", "schema": "task", "filter": { "status": "open" }, "sort": { "field": "dueDate", "dir": "asc" }, "limit": 8, "hideHeader": true, "emptyText": "Nothing is due", "viewAllRoute": { "name": "Boards" }, "viewAllLabel": "Open the boards", "columns": [ { "key": "title", "label": "Task" }, { "key": "dueDate", "label": "Due" }, { "key": "assignedTo", "label": "Assignee" } ] } }
+        ],
+        "layout": [
+          { "id": "1", "widgetId": "tasks-open", "gridX": 0, "gridY": 0, "gridWidth": 4, "gridHeight": 2, "showTitle": false },
+          { "id": "2", "widgetId": "tasks-in-progress", "gridX": 4, "gridY": 0, "gridWidth": 4, "gridHeight": 2, "showTitle": false },
+          { "id": "3", "widgetId": "tasks-blocked", "gridX": 8, "gridY": 0, "gridWidth": 4, "gridHeight": 2, "showTitle": false },
+          { "id": "4", "widgetId": "tasks-by-status", "gridX": 0, "gridY": 2, "gridWidth": 6, "gridHeight": 4, "showTitle": true },
+          { "id": "5", "widgetId": "tasks-by-priority", "gridX": 6, "gridY": 2, "gridWidth": 6, "gridHeight": 4, "showTitle": true },
+          { "id": "6", "widgetId": "tasks-due-soonest", "gridX": 0, "gridY": 6, "gridWidth": 12, "gridHeight": 4, "showTitle": true }
+        ]
+      }
+    },
+    {
+      "id": "TimeSpentReport",
+      "_note": "Declarative. `duration` is stored in minutes, so the sum is labelled as minutes rather than dressed up as hours by a format string that cannot divide.",
+      "route": "/reports/time",
+      "type": "dashboard",
+      "title": "Time spent",
+      "config": {
+        "widgets": [
+          { "id": "time-entries", "title": "Entries", "type": "stat", "content": { "label": "Entries", "icon": "ClockOutline", "route": { "name": "Timesheet" }, "format": { "style": "decimal", "decimals": 0 }, "source": { "register": "planninq", "schema": "plannedTimeEntry", "metric": "count" } } },
+          { "id": "time-minutes", "title": "Minutes logged", "type": "stat", "content": { "label": "Minutes logged", "icon": "TimerOutline", "route": { "name": "Timesheet" }, "format": { "style": "decimal", "decimals": 0 }, "source": { "register": "planninq", "schema": "plannedTimeEntry", "metric": "sum", "field": "duration" } } },
+          { "id": "time-by-user", "title": "Per person", "type": "chart", "content": { "chartKind": "bar", "legendPosition": "bottom", "emptyLabel": "Nothing logged yet", "dataSource": { "register": "planninq", "schema": "plannedTimeEntry", "aggregate": { "groupBy": "user", "metric": "sum", "sumField": "duration", "topN": 10, "otherBucket": true } } } },
+          { "id": "time-recent", "title": "Most recent", "type": "object-table", "content": { "register": "planninq", "schema": "plannedTimeEntry", "filter": {}, "sort": { "field": "date", "dir": "desc" }, "limit": 8, "hideHeader": true, "emptyText": "Nothing logged yet", "viewAllRoute": { "name": "Timesheet" }, "viewAllLabel": "Open the timesheet", "columns": [ { "key": "date", "label": "Date" }, { "key": "user", "label": "Who" }, { "key": "duration", "label": "Minutes" }, { "key": "description", "label": "What" } ] } }
+        ],
+        "layout": [
+          { "id": "1", "widgetId": "time-entries", "gridX": 0, "gridY": 0, "gridWidth": 6, "gridHeight": 2, "showTitle": false },
+          { "id": "2", "widgetId": "time-minutes", "gridX": 6, "gridY": 0, "gridWidth": 6, "gridHeight": 2, "showTitle": false },
+          { "id": "3", "widgetId": "time-by-user", "gridX": 0, "gridY": 2, "gridWidth": 12, "gridHeight": 4, "showTitle": true },
+          { "id": "4", "widgetId": "time-recent", "gridX": 0, "gridY": 6, "gridWidth": 12, "gridHeight": 4, "showTitle": true }
+        ]
+      }
+    },
+    {
+      "id": "FeaturesRoadmap",
+      "route": "/features-roadmap",
+      "type": "roadmap",
+      "title": "Features & roadmap",
+      "config": { "documentationUrl": "https://planix.conduction.nl" },
+      "_note": "ADR-018 / ADR-114 Decision 5. Rendered by the shared CnFeaturesAndRoadmapView, which reads the committed docs/features.json and OpenRegister's GitHub proxy. No per-app customisation of the view itself."
+    },
+    {
+      "id": "Flows",
+      "route": "/flows",
+      "type": "index",
+      "title": "Flows",
+      "config": { "entitySource": "flows", "app": "planninq", "rowRoute": "FlowDetail" },
+      "_note": "ADR-110 Decision 4: a planninq flow operates on projects and tasks, so the authoring surface belongs here rather than behind a link to another app's list. type:\"index\" over the NAMED flows source, which is the canonical shape: a flow lives in OpenRegister's native flow store, not a register/schema pair, so the object-backed index cannot address it. nextcloud-vue marks the dedicated `flows` page type deprecated. rowRoute names FlowDetail by route NAME, without which the row click falls back to the source's own /flows path."
+    },
+    {
+      "id": "FlowDetail",
+      "route": "/flows/:id",
+      "type": "flow",
+      "title": "Flow",
+      "config": { "app": "planninq" },
+      "_note": "The shared CnFlowDetail canvas over the same single engine (ADR-065), scoped to this app."
+    }
+  ],
   "observability": {
-    "_note": "AppHost manifest (ADR-040). The observability block reproduces the output of the now-deleted hand-written HealthController + MetricsController; /api/health and /api/metrics are aliased to AppHost\\Controller\\GenericHealth#index / GenericMetrics#index in appinfo/routes.php. The deepLinks block replaces the hand-written DeepLinkRegistrationListener, read at event time by the generic listener. Parity: the database health check and the implicit {appId}_info/{appId}_up metrics match the pre-adoption contract — those two are derived from the runtime app id, so they read planninq_info/planninq_up after the planix -> planninq rename; the task/project object counts are a documented intentional improvement (object-count observability the bespoke MetricsController never emitted). The `register` and `registerSlug` values below are the OpenRegister register slug, not the app id — they moved from `planix` to `planninq` alongside the MigrateRegisterSlug repair step that renames the register ROW. They only work because that step runs: the slug is what a lookup resolves a register by, so a renamed slug here without the row rename would resolve nothing (and, on the import path, fork a second empty register). This is an observability-only manifest (schema v2.13.0 profile): planninq renders no manifest-driven UI, so there is deliberately no menu/pages — the former top-level appId/name keys were removed 2026-07-06 (not part of the v2 contract; the app id comes from the runtime).",
+    "_note": "AppHost manifest (ADR-040). The observability block reproduces the output of the now-deleted hand-written HealthController + MetricsController; /api/health and /api/metrics are aliased to AppHost\\Controller\\GenericHealth#index / GenericMetrics#index in appinfo/routes.php. The deepLinks block replaces the hand-written DeepLinkRegistrationListener, read at event time by the generic listener. Parity: the database health check and the implicit {appId}_info/{appId}_up metrics match the pre-adoption contract — those two are derived from the runtime app id, so they read planninq_info/planninq_up after the planix -> planninq rename; the task/project object counts are a documented intentional improvement (object-count observability the bespoke MetricsController never emitted). The `register` and `registerSlug` values below are the OpenRegister register slug, not the app id — they moved from `planix` to `planninq` alongside the MigrateRegisterSlug repair step that renames the register ROW. They only work because that step runs: the slug is what a lookup resolves a register by, so a renamed slug here without the row rename would resolve nothing (and, on the import path, fork a second empty register). This was an observability-only manifest until 2026-08-31, when planninq adopted the manifest shell: it now also carries `dependencies`, `menu` and `pages`, CnAppRoot renders the nav and the OpenRegister dependency gate, and vue-router routes are built from `pages[]` in main.js. The former top-level appId/name keys were removed 2026-07-06 (not part of the v2 contract; the app id comes from the runtime).",
     "health": {
       "statusCodePolicy": "adr006",
       "checks": [
@@ -86,7 +296,7 @@
     },
     {
       "registerSlug": "planninq",
-      "schemaSlug": "timeEntry",
+      "schemaSlug": "plannedTimeEntry",
       "urlTemplate": "/apps/planninq/projects/{project}?task={task}",
       "displayName": "Time entry"
     }

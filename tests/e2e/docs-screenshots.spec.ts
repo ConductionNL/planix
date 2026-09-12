@@ -33,11 +33,21 @@
  * Pattern reference: ADR-030 (hydra/openspec/architecture/).
  */
 
-import { test, expect, type Page } from '@playwright/test'
-import * as path from 'path'
-import * as fs from 'fs'
+import type { Page } from '@playwright/test'
 
-const SHOT_ROOT = path.resolve(__dirname, '..', '..', 'docs', 'static', 'screenshots', 'tutorials')
+import { expect, test } from '@playwright/test'
+import * as fs from 'fs'
+import * as path from 'path'
+
+const SHOT_ROOT = path.resolve(
+	__dirname,
+	'..',
+	'..',
+	'docs',
+	'static',
+	'screenshots',
+	'tutorials',
+)
 const APP = '/apps/planninq'
 
 /**
@@ -46,12 +56,20 @@ const APP = '/apps/planninq'
  * Lives under `static/` so Docusaurus copies the PNG into the build
  * root — markdown image refs use `/screenshots/...` (root-absolute).
  */
-async function shoot(page: Page, track: 'user' | 'admin', file: string): Promise<void> {
+async function shoot(
+	page: Page,
+	track: 'user' | 'admin',
+	file: string,
+): Promise<void> {
 	const dir = path.join(SHOT_ROOT, track)
 	if (!fs.existsSync(dir)) {
 		fs.mkdirSync(dir, { recursive: true })
 	}
-	await page.screenshot({ path: path.join(dir, file), fullPage: false, type: 'png' })
+	await page.screenshot({
+		path: path.join(dir, file),
+		fullPage: false,
+		type: 'png',
+	})
 }
 
 /**
@@ -62,16 +80,25 @@ async function shoot(page: Page, track: 'user' | 'admin', file: string): Promise
 async function dismissOverlays(page: Page): Promise<void> {
 	const wizard = page.locator('#firstrunwizard')
 	if (await wizard.isVisible().catch(() => false)) {
-		const close = wizard.getByRole('button', { name: /close|got it|finish|skip/i }).first()
+		const close = wizard
+			.getByRole('button', { name: /close|got it|finish|skip/i })
+			.first()
 		if (await close.isVisible().catch(() => false)) {
 			await close.click().catch(() => {})
 		} else {
 			await page.keyboard.press('Escape').catch(() => {})
 		}
-		await wizard.waitFor({ state: 'hidden', timeout: 4000 }).catch(() => {})
+		await wizard
+			.waitFor({ state: 'hidden', timeout: 4000 })
+			.catch(() => {})
 	}
 	const stray = page.locator('[role="dialog"]:not(#firstrunwizard)')
-	if (await stray.first().isVisible().catch(() => false)) {
+	if (
+		await stray
+			.first()
+			.isVisible()
+			.catch(() => false)
+	) {
 		await page.keyboard.press('Escape').catch(() => {})
 		await page.waitForTimeout(300)
 	}
@@ -85,15 +112,20 @@ async function dismissOverlays(page: Page): Promise<void> {
  * Planninq uses history-mode routing rooted at /apps/planninq.
  */
 async function go(page: Page, route: string): Promise<void> {
-	const url = (route.startsWith('/apps/') || route.startsWith('/settings'))
-		? route
-		: `${APP}${route.startsWith('/') ? route : `/${route}`}`
-	await page.goto(url).catch(() => { /* tolerate 404 — caller decides */ })
+	const url
+		= route.startsWith('/apps/') || route.startsWith('/settings')
+			? route
+			: `${APP}${route.startsWith('/') ? route : `/${route}`}`
+	await page.goto(url).catch(() => {
+		/* tolerate 404 — caller decides */
+	})
 	// ADR-074 rule 4: `networkidle` never settles on Nextcloud — long-polling
 	// and background requests keep the network busy indefinitely, so this wait
 	// always ran to its timeout and was then swallowed by the `.catch()`. It
 	// cost the full timeout on every navigation and guaranteed nothing.
-	await page.waitForLoadState('domcontentloaded').catch(() => { /* navigation may already be settled */ })
+	await page.waitForLoadState('domcontentloaded').catch(() => {
+		/* navigation may already be settled */
+	})
 	await dismissOverlays(page)
 	await page.waitForTimeout(900)
 }
@@ -103,14 +135,21 @@ async function go(page: Page, route: string): Promise<void> {
  * / etc.) if a button matching the name pattern is present, screenshot
  * it, and close it again. Returns whether the dialog appeared.
  */
-async function captureCreateDialog(page: Page, namePattern: RegExp, track: 'user' | 'admin', file: string): Promise<boolean> {
+async function captureCreateDialog(
+	page: Page,
+	namePattern: RegExp,
+	track: 'user' | 'admin',
+	file: string,
+): Promise<boolean> {
 	const addBtn = page.getByRole('button', { name: namePattern }).first()
 	if (!(await addBtn.isVisible().catch(() => false))) {
 		return false
 	}
 	await addBtn.click().catch(() => {})
 	const dialog = page.locator('[role="dialog"]:not(#firstrunwizard)').first()
-	await dialog.waitFor({ state: 'visible', timeout: 5000 }).catch(() => { /* no dialog */ })
+	await dialog.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {
+		/* no dialog */
+	})
 	await page.waitForTimeout(400)
 	await shoot(page, track, file)
 	const cancel = dialog.getByRole('button', { name: /Cancel/i }).first()
@@ -147,9 +186,19 @@ test.describe('docs: user track', () => {
 	test('UN create-project', async ({ page }) => {
 		// docs/tutorials/user/02-create-project.md
 		await go(page, '/projects')
-		const had = await captureCreateDialog(page, /Create project|New project/i, 'user', '02-create-project-01.png')
+		const had = await captureCreateDialog(
+			page,
+			/Create project|New project/i,
+			'user',
+			'02-create-project-01.png',
+		)
 		if (had) {
-			await captureCreateDialog(page, /Create project|New project/i, 'user', '02-create-project-02.png')
+			await captureCreateDialog(
+				page,
+				/Create project|New project/i,
+				'user',
+				'02-create-project-02.png',
+			)
 		}
 		// Steps 3-5 (empty board, sidebar tabs) need an existing project;
 		// the projects list stands in.

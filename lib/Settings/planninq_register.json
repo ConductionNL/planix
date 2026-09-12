@@ -22,8 +22,9 @@
         "schemas": [
           "task",
           "project",
+          "projectPhase",
           "column",
-          "timeEntry",
+          "plannedTimeEntry",
           "label",
           "dependency"
         ],
@@ -38,7 +39,7 @@
       "task": {
         "slug": "task",
         "icon": "CheckboxMarkedCircleOutline",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "title": "Task",
         "description": "A discrete unit of work. Maps to iCalendar VTODO (RFC 5545) and schema:PlanAction.",
         "x-schema-org": "schema:PlanAction",
@@ -216,6 +217,20 @@
             "format": "uuid",
             "$ref": "project"
           },
+          "phase": {
+            "title": "Phase",
+            "type": "string",
+            "description": "UUID of the Project Phase this task delivers. Empty on projects that are not broken into phases.",
+            "format": "uuid",
+            "nullable": true,
+            "$ref": "projectPhase"
+          },
+          "billable": {
+            "title": "Billable",
+            "type": "boolean",
+            "description": "Whether work on this task is billable. Leave empty to inherit from the phase, or from the project when there is no phase.",
+            "nullable": true
+          },
           "zaakUuid": {
             "title": "Zaak UUID",
             "type": "string",
@@ -377,9 +392,9 @@
       "project": {
         "slug": "project",
         "icon": "FolderOutline",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "title": "Project",
-        "description": "A container grouping related tasks and kanban columns. Maps to schema:CreativeWork.",
+        "description": "A container grouping related tasks and kanban columns, optionally delivered for a client against a budget. Maps to schema:CreativeWork.",
         "x-schema-org": "schema:CreativeWork",
         "type": "object",
         "required": [
@@ -440,11 +455,12 @@
           "status": {
             "title": "Status",
             "type": "string",
-            "description": "Project lifecycle status",
+            "description": "Project lifecycle status. Progress within an active project is read from the board, not from this field.",
             "enum": [
               "active",
               "archived",
-              "completed"
+              "completed",
+              "cancelled"
             ],
             "default": "active"
           },
@@ -511,11 +527,227 @@
             "description": "Short unique project key used as the prefix of task keys (e.g. PLX). Preserved from the source system on import.",
             "nullable": true
           },
+          "client": {
+            "title": "Client",
+            "type": "string",
+            "description": "UUID of the client this project is delivered for. Set on projects that came in through a CRM; empty on internal work.",
+            "format": "uuid",
+            "nullable": true,
+            "x-external-register": "pipelinq"
+          },
+          "billable": {
+            "title": "Billable",
+            "type": "boolean",
+            "description": "Whether the work on this project is billable to the client. Phases, tasks and time entries inherit this unless they set their own value.",
+            "default": false
+          },
+          "budgetHours": {
+            "title": "Budget Hours",
+            "type": "number",
+            "description": "Budgeted hours for the whole project. Zero means no budget was agreed.",
+            "default": 0
+          },
+          "budgetAmount": {
+            "title": "Budget Amount",
+            "type": "number",
+            "description": "Budgeted amount in the reporting currency. Zero means no budget was agreed.",
+            "default": 0
+          },
+          "hourlyRate": {
+            "title": "Hourly Rate",
+            "type": "number",
+            "description": "Default hourly rate for the project. Time entries fall back to this when they carry no rate of their own.",
+            "default": 0
+          },
+          "startDate": {
+            "title": "Start Date",
+            "type": "string",
+            "description": "Planned start of the project (ISO 8601)",
+            "format": "date",
+            "nullable": true
+          },
+          "endDate": {
+            "title": "End Date",
+            "type": "string",
+            "description": "Planned end of the project (ISO 8601)",
+            "format": "date",
+            "nullable": true
+          },
           "metadata": {
             "title": "Metadata",
             "type": "object",
             "description": "Declared catch-all for source-system fields and provenance keys (e.g. jiraProjectId, migratedAt). Declared explicitly so magic-table storage persists it.",
             "default": {}
+          }
+        }
+      },
+      "projectPhase": {
+        "slug": "projectPhase",
+        "icon": "TimelineOutline",
+        "version": "0.1.0",
+        "title": "Project Phase",
+        "description": "A delivery stage within a project, such as discovery, build or hypercare. Phases carry their own budget and billable flag, and tasks hang off them. Maps to schema:CreativeWork.",
+        "x-schema-org": "schema:CreativeWork",
+        "type": "object",
+        "required": [
+          "title",
+          "project"
+        ],
+        "authorization": {
+          "read": [
+            {
+              "group": "authenticated",
+              "match": {
+                "project": {
+                  "$in": {
+                    "$lookup": {
+                      "schema": "project",
+                      "field": "id",
+                      "where": {
+                        "members": {
+                          "$contains": "$userId"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "group": "admin"
+            }
+          ],
+          "create": [
+            {
+              "group": "authenticated",
+              "match": {
+                "project": {
+                  "$in": {
+                    "$lookup": {
+                      "schema": "project",
+                      "field": "id",
+                      "where": {
+                        "members": {
+                          "$contains": "$userId"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "group": "admin"
+            }
+          ],
+          "update": [
+            {
+              "group": "authenticated",
+              "match": {
+                "project": {
+                  "$in": {
+                    "$lookup": {
+                      "schema": "project",
+                      "field": "id",
+                      "where": {
+                        "members": {
+                          "$contains": "$userId"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "group": "admin"
+            }
+          ],
+          "delete": [
+            {
+              "group": "authenticated",
+              "match": {
+                "project": {
+                  "$in": {
+                    "$lookup": {
+                      "schema": "project",
+                      "field": "id",
+                      "where": {
+                        "members": {
+                          "$contains": "$userId"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "group": "admin"
+            }
+          ]
+        },
+        "properties": {
+          "title": {
+            "title": "Title",
+            "type": "string",
+            "description": "Name of the phase"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string",
+            "description": "UUID of the parent Project",
+            "format": "uuid",
+            "$ref": "project"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string",
+            "description": "What this phase delivers"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string",
+            "description": "Phase lifecycle status",
+            "enum": [
+              "open",
+              "in_progress",
+              "completed",
+              "cancelled"
+            ],
+            "default": "open"
+          },
+          "order": {
+            "title": "Order",
+            "type": "integer",
+            "description": "Position of the phase within the project",
+            "default": 0
+          },
+          "billable": {
+            "title": "Billable",
+            "type": "boolean",
+            "description": "Whether work in this phase is billable. Leave empty to inherit from the project.",
+            "nullable": true
+          },
+          "budgetHours": {
+            "title": "Budget Hours",
+            "type": "number",
+            "description": "Budgeted hours for this phase. Zero means no separate budget was agreed.",
+            "default": 0
+          },
+          "startDate": {
+            "title": "Start Date",
+            "type": "string",
+            "description": "Planned start of the phase (ISO 8601)",
+            "format": "date",
+            "nullable": true
+          },
+          "endDate": {
+            "title": "End Date",
+            "type": "string",
+            "description": "Planned end of the phase (ISO 8601)",
+            "format": "date",
+            "nullable": true
           }
         }
       },
@@ -669,10 +901,10 @@
           }
         }
       },
-      "timeEntry": {
-        "slug": "timeEntry",
+      "plannedTimeEntry": {
+        "slug": "plannedTimeEntry",
         "icon": "TimerOutline",
-        "version": "0.1.3",
+        "version": "0.2.0",
         "title": "Time Entry",
         "description": "Time logged by a user against a task. Maps to schema:QuantitativeValue.",
         "x-schema-org": "schema:QuantitativeValue",
@@ -758,6 +990,15 @@
           ]
         },
         "properties": {
+          "timeEntry": {
+            "title": "Urenboeking",
+            "title:en": "Time entry",
+            "type": "string",
+            "description": "De humaniq `TimeEntry` waarop deze uren geboekt zijn. Een platte uuid en geen `$ref`: humaniq's register is een ander register, en ADR-062 regel 7 geeft een doel buiten dit register geen `$ref`.",
+            "description:en": "The humaniq `TimeEntry` these hours are booked on. A plain uuid and not a `$ref`: humaniq's register is a different register, and ADR-062 rule 7 gives a cross-register target no `$ref`.",
+            "format": "uuid",
+            "facetable": true
+          },
           "task": {
             "title": "Task",
             "type": "string",
@@ -793,6 +1034,26 @@
             "title": "Note",
             "type": "string",
             "description": "Optional note about the work performed"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string",
+            "description": "UUID of the Project this time was booked against. Denormalised from the task so time can be totalled per project in one query.",
+            "format": "uuid",
+            "nullable": true,
+            "$ref": "project"
+          },
+          "billable": {
+            "title": "Billable",
+            "type": "boolean",
+            "description": "Whether this time is billable. Leave empty to inherit from the task, phase or project.",
+            "nullable": true
+          },
+          "hourlyRate": {
+            "title": "Hourly Rate",
+            "type": "number",
+            "description": "Rate applied to this entry. Zero or empty falls back to the project rate.",
+            "default": 0
           }
         }
       },
@@ -1281,7 +1542,7 @@
       {
         "@self": {
           "register": "planninq",
-          "schema": "timeEntry",
+          "schema": "plannedTimeEntry",
           "slug": "te-fix-login-2026-04-01"
         },
         "task": "00000000-0000-4000-d000-000000000001",
@@ -1293,7 +1554,7 @@
       {
         "@self": {
           "register": "planninq",
-          "schema": "timeEntry",
+          "schema": "plannedTimeEntry",
           "slug": "te-fix-login-2026-04-02"
         },
         "task": "00000000-0000-4000-d000-000000000001",
@@ -1305,7 +1566,7 @@
       {
         "@self": {
           "register": "planninq",
-          "schema": "timeEntry",
+          "schema": "plannedTimeEntry",
           "slug": "te-k8s-2026-04-01"
         },
         "task": "00000000-0000-4000-d000-000000000004",

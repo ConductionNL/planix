@@ -24,6 +24,15 @@
              so calls into the engine stay type-checked. Analysis-only: never
              autoloaded or executed at runtime. -->
         <file name="tests/stubs/openregister-apphost.stub.php" />
+        <!--
+            `OCA\OpenRegister\AppHost\Bootstrap`, which used to live in the file
+            above. It moved to the shared package because decidiq and filinq
+            adopted the same AppHost route table and write the same guarded
+            `Bootstrap::aliasStoreController()` call, and both were red on psalm
+            with the `UnusedParam` finding this stub answers. planninq was green
+            only because it had already paid for a copy of it.
+        -->
+        <file name="vendor/conduction/hydra-gates/hydra-gates/stubs/openregister-apphost-bootstrap.stub.php" />
     </stubs>
     <issueHandlers>
         <UndefinedDocblockClass errorLevel="suppress"/>

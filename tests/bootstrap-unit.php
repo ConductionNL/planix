@@ -8,21 +8,88 @@ define('PHPUNIT_RUN', 1);
 // Include Composer's autoloader.
 $autoloader = require __DIR__ . '/../vendor/autoload.php';
 
-// Bootstrap Nextcloud — when the app is checked out inside a Nextcloud server
-// tree, the full environment (including \OC::$server) is available.
-// Only attempt to load base.php if a valid NC config exists (with a DB),
-// otherwise base.php aborts on a missing config and takes the suite with it.
+/**
+ * Tell whether a Nextcloud root is an INSTALLED instance, not just a source tree.
+ *
+ * lib/base.php from a tree that was never installed still declares `OC` and
+ * builds `\OC::$server` before it throws. That server cannot be undone
+ * (`OC::$server` is a typed static), so from then on every container lookup in
+ * the code under test hits a container that knows none of this app's
+ * registrations and autowires from scratch. On 2026-09-08 that recursion took
+ * 19 GB of RAM in openregister. The decision therefore has to be made BEFORE
+ * base.php is loaded, and the only cheap signal is the `installed` flag.
+ *
+ * A `dbtype` or `dbhost` key is NOT that signal: a half-written config carries
+ * those long before the instance is installed.
+ *
+ * @param string $ncRoot Candidate Nextcloud root.
+ *
+ * @return bool True when config/config.php declares `installed => true`.
+ */
+function planninq_nc_root_is_installed(string $ncRoot): bool {
+	$configFile = $ncRoot . '/config/config.php';
+	if (is_file($configFile) === false || filesize($configFile) === 0) {
+		return false;
+	}
+
+	// The config file is a plain `$CONFIG = [...]` script; including it inside a
+	// closure keeps `$CONFIG` out of the global scope.
+	$config = (static function () use ($configFile): array {
+		$CONFIG = [];
+		try {
+			include $configFile;
+		} catch (\Throwable) {
+			return [];
+		}
+
+		if (is_array($CONFIG) === false) {
+			return [];
+		}
+
+		return $CONFIG;
+	})();
+
+	return ($config['installed'] ?? false) === true;
+}
+
+// Bootstrap Nextcloud — when the app is checked out inside an INSTALLED
+// Nextcloud server tree, the full environment (including \OC::$server) is
+// available. A bare source tree is skipped: base.php declares OC and builds a
+// server container before it aborts, and that half-built container autowires
+// this app's services from scratch, which took 19 GB of RAM in openregister on
+// 2026-09-08. The previous dbtype/dbhost check did not catch that case.
 $ncBasePath = __DIR__ . '/../../../lib/base.php';
-$ncConfigPath = __DIR__ . '/../../../config/config.php';
+$ncRootPath = dirname(__DIR__, 3);
 $ncLoaded = false;
 
-if (file_exists($ncBasePath) && file_exists($ncConfigPath)) {
-	$ncConfig = [];
-	include $ncConfigPath;
-	$ncConfig = $CONFIG ?? [];
-	if (isset($ncConfig['dbtype']) || isset($ncConfig['dbhost'])) {
+if (file_exists($ncBasePath) === true && planninq_nc_root_is_installed($ncRootPath) === true) {
+	try {
 		require_once $ncBasePath;
 		$ncLoaded = true;
+	} catch (\Throwable $e) {
+		// The tree IS installed, so the dangerous case this guard exists for
+		// (loading a bare source tree) did not happen. base.php still failed
+		// part-way.
+		//
+		// This does NOT abort. `OC::$server` is a typed static, so a half-built
+		// container cannot be unset, and aborting was tried: it turned all six
+		// PHPUnit legs red on a suite that passes (humaniq, 2026-09-08). The
+		// runaway this guard exists for needs an autowiring lookup to reach the
+		// poisoned container, this app has none in lib, and phpunit.xml's 2G cap
+		// bounds one anyway.
+		//
+		// So: say plainly that the container is unreliable, and let the pure unit
+		// tests run. A container-bound test failing loudly is the intended outcome.
+		fwrite(
+			STDERR,
+			sprintf(
+				"[planninq/tests/bootstrap-unit] Nextcloud at %s could not finish booting (%s).\n"
+				. "  \\OC::\$server now holds a HALF-BUILT container and cannot be unset. Pure unit tests\n"
+				. "  continue; anything resolving a service from that container is UNVERIFIED by this run.\n",
+				$ncRootPath,
+				$e->getMessage()
+			)
+		);
 	}
 }
 

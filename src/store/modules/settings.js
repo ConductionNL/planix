@@ -1,3 +1,4 @@
+import { generateUrl } from '@nextcloud/router'
 /**
  * Settings Pinia store.
  *
@@ -7,7 +8,6 @@
  * @spec openspec/changes/retrofit-2026-05-24-annotate-planix/tasks.md#task-4
  */
 import { defineStore } from 'pinia'
-import { generateUrl } from '@nextcloud/router'
 
 export const useSettingsStore = defineStore('settings', {
 	state: () => ({

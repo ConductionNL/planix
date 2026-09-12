@@ -62,7 +62,7 @@
 							v-model="estimateInput"
 							:label="t('planninq', 'Estimate')"
 							:error="!!estimateError"
-							:helper-text="estimateError || t('planninq', 'e.g. 2h 30m, 90m, 1.5h')"
+							:helperText="estimateError || t('planninq', 'e.g. 2h 30m, 90m, 1.5h')"
 							data-testid="estimate-input" />
 						<NcButton
 							variant="secondary"
@@ -103,13 +103,13 @@
 							<span class="task-detail__entry-desc">{{ entry.description }}</span>
 							<span class="task-detail__entry-user">{{ entry.user }}</span>
 							<NcActions v-if="canModify(entry)">
-								<NcActionButton :close-after-click="true" @click="openLogDialog(entry)">
+								<NcActionButton :closeAfterClick="true" @click="openLogDialog(entry)">
 									<template #icon>
 										<PencilIcon :size="20" />
 									</template>
 									{{ t('planninq', 'Edit') }}
 								</NcActionButton>
-								<NcActionButton :close-after-click="true" @click="deleteEntry(entry)">
+								<NcActionButton :closeAfterClick="true" @click="deleteEntry(entry)">
 									<template #icon>
 										<DeleteIcon :size="20" />
 									</template>
@@ -131,16 +131,16 @@
 				v-bind="sidebarConfig"
 				:title="taskTitle"
 				:subtitle="t('planninq', 'Task')"
-				:files-label="t('planninq', 'Attachments')"
-				:notes-label="t('planninq', 'Comments')"
-				:audit-trail-label="t('planninq', 'Activity')"
+				:filesLabel="t('planninq', 'Attachments')"
+				:notesLabel="t('planninq', 'Comments')"
+				:auditTrailLabel="t('planninq', 'Activity')"
 				@update:open="onSidebarToggle" />
 		</div>
 
 		<!-- Log/edit time dialog -->
 		<TimeEntryDialog
 			v-if="dialogOpen"
-			:task-id="taskId"
+			:taskId="taskId"
 			:entry="editingEntry"
 			@close="closeDialog"
 			@saved="onEntrySaved" />
@@ -148,21 +148,21 @@
 </template>
 
 <script>
-import { mapState } from 'pinia'
-import { NcActions, NcActionButton, NcButton, NcEmptyContent, NcLoadingIcon, NcTextField } from '@nextcloud/vue'
 import { CnObjectSidebar } from '@conduction/nextcloud-vue'
-import ArrowLeft from 'vue-material-design-icons/ArrowLeft.vue'
+import { NcActionButton, NcActions, NcButton, NcEmptyContent, NcLoadingIcon, NcTextField } from '@nextcloud/vue'
+import { mapState } from 'pinia'
 import AlertCircleOutline from 'vue-material-design-icons/AlertCircleOutline.vue'
+import ArrowLeft from 'vue-material-design-icons/ArrowLeft.vue'
 import ClockPlusOutline from 'vue-material-design-icons/ClockPlusOutline.vue'
-import PencilIcon from 'vue-material-design-icons/Pencil.vue'
 import DeleteIcon from 'vue-material-design-icons/Delete.vue'
-import { useProjectsStore } from '../store/projects.js'
-import { useObjectStore } from '../store/objectStore.js'
-import { useTimeEntriesStore } from '../store/timeEntries.js'
-import { useSettingsStore } from '../store/modules/settings.js'
-import { taskCollaborationSidebarConfig } from '../utils/taskHelpers.js'
-import { parseDuration, formatDuration } from '../utils/durationParser.js'
+import PencilIcon from 'vue-material-design-icons/Pencil.vue'
 import TimeEntryDialog from '../dialogs/TimeEntryDialog.vue'
+import { useSettingsStore } from '../store/modules/settings.js'
+import { useObjectStore } from '../store/objectStore.js'
+import { useProjectsStore } from '../store/projects.js'
+import { useTimeEntriesStore } from '../store/timeEntries.js'
+import { formatDuration, parseDuration } from '../utils/durationParser.js'
+import { taskCollaborationSidebarConfig } from '../utils/taskHelpers.js'
 
 /**
  * Task detail view.

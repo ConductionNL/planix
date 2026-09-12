@@ -12,6 +12,7 @@ return \OCA\OpenRegister\AppHost\Routes::standard([
     // First-time setup wizard (ADR-042) - the standard CnSetupWizard contract.
     ['name' => 'setup#status',    'url' => '/api/setup/status',            'verb' => 'GET'],
     ['name' => 'setup#runAction', 'url' => '/api/setup/action/{actionId}', 'verb' => 'POST', 'requirements' => ['actionId' => '[a-z0-9\\-]+']],
+    ['name' => 'setup#saveConfig', 'url' => '/api/setup/config',           'verb' => 'POST'],
     ['name' => 'settings#updateUser', 'url' => '/api/settings/user', 'verb' => 'POST'],
 
     // Project creation policy check — enforces allow_project_creation server-side.

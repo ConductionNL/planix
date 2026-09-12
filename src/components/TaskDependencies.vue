@@ -59,7 +59,7 @@
 			<NcSelect
 				v-model="selected"
 				:options="pickerOptions"
-				:input-label="t('planninq', 'Add a blocking task')"
+				:inputLabel="t('planninq', 'Add a blocking task')"
 				:placeholder="t('planninq', 'Pick a task that must finish first')"
 				label="title"
 				:disabled="saving" />
@@ -76,6 +76,7 @@
 </template>
 
 <script>
+import { translate as t } from '@nextcloud/l10n'
 /**
  * TaskDependencies — task-detail section showing the two dependency directions
  * ("Blocked by" / "Blocks") with a same-project task picker and inline
@@ -89,12 +90,10 @@
  * @spec openspec/changes/task-dependencies/specs/task-dependencies/spec.md
  */
 import { NcButton, NcSelect } from '@nextcloud/vue'
-import { translate as t } from '@nextcloud/l10n'
 import CloseIcon from 'vue-material-design-icons/Close.vue'
 import LockOutline from 'vue-material-design-icons/LockOutline.vue'
-
 import { useDependenciesStore } from '../store/dependencies.js'
-import { openBlockerIds, statusMapFromTasks, dependencyPickerCandidates } from '../utils/taskHelpers.js'
+import { dependencyPickerCandidates, openBlockerIds, statusMapFromTasks } from '../utils/taskHelpers.js'
 
 export default {
 	name: 'TaskDependencies',
@@ -229,11 +228,9 @@ export default {
 		 * @spec openspec/changes/task-dependencies/specs/task-dependencies/spec.md
 		 */
 		pickerOptions() {
-			const alreadyBlocking = new Set(
-				this.dependenciesStore.edges
-					.filter((edge) => edge.blocked === this.taskId)
-					.map((edge) => edge.blocker),
-			)
+			const alreadyBlocking = new Set(this.dependenciesStore.edges
+				.filter((edge) => edge.blocked === this.taskId)
+				.map((edge) => edge.blocker))
 			return dependencyPickerCandidates(this.task, this.projectTasks)
 				.filter((task) => !alreadyBlocking.has(task.id || task['@self']?.id))
 				.map((task) => ({ id: task.id || task['@self']?.id, title: task.title }))
@@ -273,7 +270,7 @@ export default {
 			try {
 				await this.dependenciesStore.createEdge(this.selected.id, this.taskId)
 				this.selected = null
-			} catch (err) {
+			} catch {
 				// Error is surfaced via the store's `error` → errorMessage banner.
 			} finally {
 				this.saving = false
@@ -291,7 +288,7 @@ export default {
 		async remove(edgeId) {
 			try {
 				await this.dependenciesStore.deleteEdge(edgeId)
-			} catch (err) {
+			} catch {
 				// Error surfaced via the store's `error` banner.
 			}
 		},

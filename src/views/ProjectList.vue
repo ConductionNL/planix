@@ -12,7 +12,7 @@
 					:key="String(chip.value)"
 					:text="chip.label"
 					:variant="activeStatus === chip.value ? 'primary' : 'secondary'"
-					:no-close="true"
+					:noClose="true"
 					:aria-pressed="activeStatus === chip.value"
 					@click="setStatusFilter(chip.value)" />
 				<!-- New project button — hidden when creation is restricted to admins -->
@@ -31,7 +31,7 @@
 		<!-- Search bar -->
 		<div class="project-list__search">
 			<NcTextField
-				:model-value="listView.searchTerm.value"
+				:modelValue="listView.searchTerm.value"
 				:label="t('planninq', 'Search projects')"
 				:placeholder="t('planninq', 'Search by title or description\u2026')"
 				@update:modelValue="listView.onSearchInput($event)" />
@@ -100,6 +100,7 @@
 </template>
 
 <script>
+import { useListView } from '@conduction/nextcloud-vue'
 /**
  * ProjectList view.
  *
@@ -110,18 +111,16 @@
  */
 // @nextcloud/vue@9 removed the `dist/Components/*.js` layout, so NcChip comes
 // from the root barrel like every other component here.
-import { NcButton, NcChip, NcTextField, NcLoadingIcon, NcEmptyContent } from '@nextcloud/vue'
-import { useListView } from '@conduction/nextcloud-vue'
+import { NcButton, NcChip, NcEmptyContent, NcLoadingIcon, NcTextField } from '@nextcloud/vue'
 import AlertCircleOutline from 'vue-material-design-icons/AlertCircleOutline.vue'
 import FolderOutline from 'vue-material-design-icons/FolderOutline.vue'
 import Magnify from 'vue-material-design-icons/Magnify.vue'
 import PlusIcon from 'vue-material-design-icons/Plus.vue'
-
-import { useProjectsStore } from '../store/projects.js'
-import { useObjectStore } from '../store/objectStore.js'
-import { useSettingsStore } from '../store/modules/settings.js'
 import ProjectListItem from '../components/ProjectListItem.vue'
 import ProjectCreationDialog from '../dialogs/ProjectCreationDialog.vue'
+import { useSettingsStore } from '../store/modules/settings.js'
+import { useObjectStore } from '../store/objectStore.js'
+import { useProjectsStore } from '../store/projects.js'
 
 export default {
 	name: 'ProjectList',
@@ -174,18 +173,21 @@ export default {
 		projectsStore() {
 			return useProjectsStore()
 		},
+
 		/**
 		 * @spec exclude Store passthrough — proxies projectsStore.projects.
 		 */
 		projects() {
 			return this.projectsStore.projects
 		},
+
 		/**
 		 * @spec exclude Store passthrough — proxies projectsStore.loading.
 		 */
 		loading() {
 			return this.projectsStore.loading
 		},
+
 		/**
 		 * @spec exclude Store passthrough — proxies projectsStore.error.
 		 */
@@ -240,11 +242,8 @@ export default {
 			}
 			const term = (this.listView.searchTerm.value || '').trim().toLowerCase()
 			if (term) {
-				list = list.filter(
-					(p) =>
-						p.title?.toLowerCase().includes(term)
-						|| p.description?.toLowerCase().includes(term),
-				)
+				list = list.filter((p) => p.title?.toLowerCase().includes(term)
+					|| p.description?.toLowerCase().includes(term))
 			}
 			return list
 		},

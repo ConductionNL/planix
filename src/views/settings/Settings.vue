@@ -61,7 +61,7 @@
 					variant="primary"
 					type="submit"
 					:disabled="savingColumns">
-					{{ savingColumns ? t('planninq', 'Saving...') : t('planninq', 'Save') }}
+					{{ savingColumns ? t('planninq', 'Saving…') : t('planninq', 'Save') }}
 				</NcButton>
 			</form>
 		</CnSettingsSection>
@@ -95,7 +95,7 @@
 					variant="primary"
 					type="submit"
 					:disabled="savingCreationPolicy">
-					{{ savingCreationPolicy ? t('planninq', 'Saving...') : t('planninq', 'Save') }}
+					{{ savingCreationPolicy ? t('planninq', 'Saving…') : t('planninq', 'Save') }}
 				</NcButton>
 			</form>
 		</CnSettingsSection>
@@ -143,7 +143,7 @@
 					variant="primary"
 					type="submit"
 					:disabled="savingLeadHours">
-					{{ savingLeadHours ? t('planninq', 'Saving...') : t('planninq', 'Save') }}
+					{{ savingLeadHours ? t('planninq', 'Saving…') : t('planninq', 'Save') }}
 				</NcButton>
 			</form>
 		</CnSettingsSection>
@@ -221,7 +221,7 @@
 					variant="secondary"
 					:disabled="initializing"
 					@click="initializeRegister">
-					{{ initializing ? t('planninq', 'Initializing...') : t('planninq', 'Initialize register') }}
+					{{ initializing ? t('planninq', 'Initializing…') : t('planninq', 'Initialize register') }}
 				</NcButton>
 			</div>
 		</CnSettingsSection>
@@ -248,7 +248,7 @@
 					variant="primary"
 					type="submit"
 					:disabled="saving">
-					{{ saving ? t('planninq', 'Saving...') : t('planninq', 'Save') }}
+					{{ saving ? t('planninq', 'Saving…') : t('planninq', 'Save') }}
 				</NcButton>
 			</form>
 		</CnSettingsSection>
@@ -267,6 +267,8 @@
 </template>
 
 <script>
+import { CnSettingsSection } from '@conduction/nextcloud-vue'
+import { generateUrl } from '@nextcloud/router'
 /**
  * Settings view (admin form).
  *
@@ -277,12 +279,10 @@
  * @spec openspec/changes/retrofit-2026-05-24-annotate-planix/tasks.md#task-4
  */
 import { NcButton, NcLoadingIcon } from '@nextcloud/vue'
-import { CnSettingsSection } from '@conduction/nextcloud-vue'
-import { useSettingsStore } from '../../store/modules/settings.js'
-import { useLabelsStore } from '../../store/labels.js'
-import LabelEditDialog from '../../dialogs/LabelEditDialog.vue'
 import LabelDeleteDialog from '../../dialogs/LabelDeleteDialog.vue'
-import { generateUrl } from '@nextcloud/router'
+import LabelEditDialog from '../../dialogs/LabelEditDialog.vue'
+import { useLabelsStore } from '../../store/labels.js'
+import { useSettingsStore } from '../../store/modules/settings.js'
 
 export default {
 	name: 'Settings',
@@ -293,11 +293,13 @@ export default {
 		LabelEditDialog,
 		LabelDeleteDialog,
 	},
+
 	data() {
 		return {
 			form: {
 				register: '',
 			},
+
 			saving: false,
 			successMessage: '',
 			// Default columns editor
@@ -326,6 +328,7 @@ export default {
 			deletingLabel: null,
 		}
 	},
+
 	computed: {
 		/**
 		 * @spec exclude Store passthrough — proxies the settings store's settings object.
@@ -333,18 +336,21 @@ export default {
 		settings() {
 			return useSettingsStore().settings || {}
 		},
+
 		/**
 		 * @spec exclude Store passthrough — the loaded labels (with usage counts).
 		 */
 		labels() {
 			return useLabelsStore().labels
 		},
+
 		/**
 		 * @spec exclude Store passthrough — labels loading flag.
 		 */
 		labelsLoading() {
 			return useLabelsStore().loading
 		},
+
 		/**
 		 * @spec exclude Store passthrough — labels error message.
 		 */
@@ -352,6 +358,7 @@ export default {
 			return useLabelsStore().error
 		},
 	},
+
 	/**
 	 * @spec exclude Lifecycle glue — seeds the form fields from the settings store on create.
 	 */
@@ -363,6 +370,7 @@ export default {
 		this.loadColumnList(settingsStore.settings)
 		useLabelsStore().fetchLabels()
 	},
+
 	methods: {
 		/**
 		 * Open the label dialog in create mode.
@@ -373,6 +381,7 @@ export default {
 			this.editingLabel = null
 			this.showLabelEdit = true
 		},
+
 		/**
 		 * Open the label dialog in edit mode for the given label.
 		 *
@@ -384,6 +393,7 @@ export default {
 			this.editingLabel = label
 			this.showLabelEdit = true
 		},
+
 		/**
 		 * Open the delete-confirmation dialog for the given label.
 		 *
@@ -395,6 +405,7 @@ export default {
 			this.deletingLabel = label
 			this.showLabelDelete = true
 		},
+
 		/**
 		 * Refresh labels after a successful create/edit and close the dialog.
 		 *
@@ -404,6 +415,7 @@ export default {
 			this.showLabelEdit = false
 			await useLabelsStore().fetchLabels()
 		},
+
 		/**
 		 * Refresh labels after a successful delete and close the dialog.
 		 *
@@ -413,6 +425,7 @@ export default {
 			this.showLabelDelete = false
 			await useLabelsStore().fetchLabels()
 		},
+
 		/**
 		 * Parse the stored default_columns JSON into the editable list,
 		 * falling back to the hardcoded default set on parse failure.
@@ -425,10 +438,11 @@ export default {
 			try {
 				const raw = settings?.default_columns || '["To Do","In Progress","Review","Done"]'
 				this.columnList = JSON.parse(raw)
-			} catch (e) {
+			} catch {
 				this.columnList = ['To Do', 'In Progress', 'Review', 'Done']
 			}
 		},
+
 		/**
 		 * Append an empty column to the editable default-columns list.
 		 *
@@ -437,6 +451,7 @@ export default {
 		addColumn() {
 			this.columnList.push('')
 		},
+
 		/**
 		 * Remove the column at the given index from the editable list.
 		 *
@@ -447,6 +462,7 @@ export default {
 		removeColumn(index) {
 			this.columnList.splice(index, 1)
 		},
+
 		/**
 		 * Reorder a column up or down within the editable list.
 		 *
@@ -464,6 +480,7 @@ export default {
 			;[updated[index], updated[target]] = [updated[target], updated[index]]
 			this.columnList = updated
 		},
+
 		/**
 		 * Persist the default-columns JSON via settingsStore.saveSettings.
 		 *
@@ -475,7 +492,7 @@ export default {
 			this.columnsError = ''
 			const settingsStore = useSettingsStore()
 			const result = await settingsStore.saveSettings({
-				default_columns: JSON.stringify(this.columnList.filter(c => c.trim() !== '')),
+				default_columns: JSON.stringify(this.columnList.filter((c) => c.trim() !== '')),
 			})
 			if (result) {
 				this.columnsSuccess = this.t('planninq', 'Default columns saved successfully')
@@ -484,6 +501,7 @@ export default {
 			}
 			this.savingColumns = false
 		},
+
 		/**
 		 * Persist the project creation policy via settingsStore.saveSettings.
 		 *
@@ -531,6 +549,7 @@ export default {
 			}
 			this.savingLeadHours = false
 		},
+
 		/**
 		 * Trigger SettingsController::load to re-import the Planninq register.
 		 *
@@ -551,11 +570,12 @@ export default {
 				} else {
 					this.initError = data.message || this.t('planninq', 'Initialization failed')
 				}
-			} catch (e) {
+			} catch {
 				this.initError = this.t('planninq', 'Initialization failed')
 			}
 			this.initializing = false
 		},
+
 		/**
 		 * Persist the legacy register-id field via settingsStore.saveSettings.
 		 *

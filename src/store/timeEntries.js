@@ -1,3 +1,4 @@
+import { getCurrentUser } from '@nextcloud/auth'
 /**
  * TimeEntry Pinia store.
  *
@@ -16,14 +17,13 @@
  */
 import { defineStore } from 'pinia'
 import { useObjectStore } from './objectStore.js'
-import { getCurrentUser } from '@nextcloud/auth'
 
 // The OpenRegister register SLUG, not the app id. It moved from `planix` to
 // `planninq` together with the MigrateRegisterSlug repair step, which renames
 // the register ROW: OR resolves a register by slug and by nothing else, so the
 // literal and the row move in the same release or neither resolves.
 const REGISTER = 'planninq'
-const TIME_ENTRY_SCHEMA = 'timeEntry'
+const TIME_ENTRY_SCHEMA = 'plannedTimeEntry'
 
 export const useTimeEntriesStore = defineStore('timeEntries', {
 	state: () => ({
@@ -42,8 +42,7 @@ export const useTimeEntriesStore = defineStore('timeEntries', {
 		 *
 		 * @spec openspec/specs/time-tracking.md
 		 */
-		totalMinutes: (state) =>
-			state.entries.reduce((acc, e) => acc + (Number(e.duration) || 0), 0),
+		totalMinutes: (state) => state.entries.reduce((acc, e) => acc + (Number(e.duration) || 0), 0),
 	},
 
 	actions: {

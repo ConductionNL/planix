@@ -10,12 +10,12 @@
  *
  * @spec openspec/changes/gantt-timeline-view/specs/gantt-timeline-view/spec.md
  */
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
 	BAR_HEIGHT,
-	PX_PER_DAY,
 	buildLayout,
 	parseDay,
+	PX_PER_DAY,
 	statusColor,
 	toScheduled,
 } from '../../src/utils/timelineHelpers.js'
@@ -58,7 +58,9 @@ describe('toScheduled', () => {
 		const [single] = toScheduled([{ id: 'a', dueDate: '2026-02-10' }])
 		expect(single.startDay).toBe(single.endDay)
 
-		const [reversed] = toScheduled([{ id: 'b', startDate: '2026-02-10', dueDate: '2026-02-01' }])
+		const [reversed] = toScheduled([
+			{ id: 'b', startDate: '2026-02-10', dueDate: '2026-02-01' },
+		])
 		expect(reversed.startDay).toBeLessThan(reversed.endDay)
 	})
 
@@ -70,8 +72,20 @@ describe('toScheduled', () => {
 
 describe('buildLayout', () => {
 	const scheduled = toScheduled([
-		{ id: 'a', title: 'A', status: 'open', startDate: '2026-01-01', dueDate: '2026-01-02' },
-		{ id: 'b', title: 'B', status: 'done', startDate: '2026-01-04', dueDate: '2026-01-05' },
+		{
+			id: 'a',
+			title: 'A',
+			status: 'open',
+			startDate: '2026-01-01',
+			dueDate: '2026-01-02',
+		},
+		{
+			id: 'b',
+			title: 'B',
+			status: 'done',
+			startDate: '2026-01-04',
+			dueDate: '2026-01-05',
+		},
 	])
 
 	it('positions bars relative to the earliest day', () => {
@@ -109,7 +123,11 @@ describe('buildLayout', () => {
 	})
 
 	it('returns a safe empty layout when there are no scheduled tasks', () => {
-		const layout = buildLayout([], [{ id: 'e', blocker: 'a', blocked: 'b' }], PX_PER_DAY.day)
+		const layout = buildLayout(
+			[],
+			[{ id: 'e', blocker: 'a', blocked: 'b' }],
+			PX_PER_DAY.day,
+		)
 		expect(layout.bars).toEqual([])
 		expect(layout.edgeLines).toEqual([])
 		expect(layout.dayCount).toBe(1)

@@ -410,3 +410,104 @@ class CustomValidationException extends \Exception {
 
 class ProviderUnavailableException extends \Exception {
 }
+
+/*
+ * `OCA\OpenRegister\AppHost\Bootstrap` USED TO BE DECLARED HERE.
+ *
+ * It moved to the shared package, which now ships it as
+ * vendor/conduction/hydra-gates/hydra-gates/stubs/openregister-apphost-bootstrap.stub.php
+ * (ConductionNL/.github#686). psalm.xml and phpstan.neon name that file.
+ *
+ * Not a tidy-up. decidiq and filinq adopted the same AppHost route table and
+ * write the same guarded `Bootstrap::aliasStoreController()` call, and both
+ * were red on psalm with the `UnusedParam` finding this stub answers. planninq
+ * was green only because it had already paid for a copy. Three copies of one
+ * stub is three chances to drift from the engine, so the copy left this tree.
+ *
+ * Do NOT re-declare the class below: two stubs declaring it would be a
+ * duplicate class declaration, not a fallback.
+ */
+
+namespace OCA\OpenRegister\Service\Integration;
+
+/**
+ * The integration-provider contract (ADR-019 / ADR-066).
+ *
+ * Planninq's projects leaf is render-and-read only and contributes `null` where
+ * a provider would go, so only the TYPE has to resolve here. Stubbing it keeps
+ * `registerLeaf()`'s second parameter type-checked rather than silenced.
+ *
+ * Analysis-only: never autoloaded or executed.
+ */
+interface IntegrationProvider {
+}
+
+/**
+ * A leaf descriptor (ADR-066).
+ *
+ * Mirrored from openregister/lib/Service/Integration/LeafDescriptor.php. The
+ * constants matter most: `RegisterProjectsLeafListener` names
+ * `KIND_RENDER_SURFACE` and `RENDER_MODE_MOUNT`, and both halves of the leaf
+ * must agree on the render mode or the surface silently blanks. A stub keeps
+ * those two constant reads checked; the psalm suppress list would not.
+ *
+ * Analysis-only: never autoloaded or executed.
+ */
+class LeafDescriptor {
+	public const KIND_RENDER_SURFACE = 'render-surface';
+
+	public const KIND_DATA_PROVIDER = 'data-provider';
+
+	public const KIND_AGENT_RUNNER = 'agent-runner';
+
+	public const RENDER_MODE_COMPONENT = 'component';
+
+	public const RENDER_MODE_MOUNT = 'mount';
+
+	public function __construct(
+		string $id,
+		string $label,
+		string $icon,
+		array $kinds,
+		?string $requiredApp = null,
+		?string $group = null,
+		array $surfaces = [],
+		?string $referenceType = null,
+		?string $requiresPermission = null,
+		string $renderMode = self::RENDER_MODE_COMPONENT,
+	) {
+	}//end __construct()
+
+	public function getId(): string {
+	}//end getId()
+
+	public function getKinds(): array {
+	}//end getKinds()
+
+	public function getSurfaces(): array {
+	}//end getSurfaces()
+
+	public function getRenderMode(): string {
+	}//end getRenderMode()
+}//end class
+
+namespace OCA\OpenRegister\Event;
+
+use OCA\OpenRegister\Service\Integration\IntegrationProvider;
+use OCA\OpenRegister\Service\Integration\LeafDescriptor;
+use OCP\EventDispatcher\Event;
+
+/**
+ * The ADR-066 collect-event a sibling app contributes its leaf to.
+ *
+ * Mirrored from openregister/lib/Event/RegisterLeafProvidersEvent.php.
+ *
+ * Analysis-only: never autoloaded or executed.
+ */
+class RegisterLeafProvidersEvent extends Event {
+	public function registerLeaf(LeafDescriptor $descriptor, ?IntegrationProvider $provider = null): void {
+	}//end registerLeaf()
+
+	public function getLeaves(): array {
+	}//end getLeaves()
+}//end class

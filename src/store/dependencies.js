@@ -1,3 +1,5 @@
+import { buildHeaders } from '@conduction/nextcloud-vue'
+import { generateUrl } from '@nextcloud/router'
 /**
  * Dependencies Pinia store.
  *
@@ -9,8 +11,6 @@
  * @spec openspec/changes/task-dependencies/specs/task-dependencies/spec.md
  */
 import { defineStore } from 'pinia'
-import { buildHeaders } from '@conduction/nextcloud-vue'
-import { generateUrl } from '@nextcloud/router'
 
 // The OpenRegister register SLUG, not the app id. It moved from `planix` to
 // `planninq` together with the MigrateRegisterSlug repair step, which renames
@@ -57,7 +57,7 @@ export const useDependenciesStore = defineStore('dependencies', {
 					blocked: row.blocked,
 				}))
 				return this.edges
-			} catch (err) {
+			} catch {
 				this.edges = []
 				return []
 			} finally {

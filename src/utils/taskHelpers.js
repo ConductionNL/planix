@@ -112,7 +112,7 @@ export function isBlocked(taskId, edges = [], statusById = {}) {
 		}
 		const blockerId = edge.blocker
 		// Tolerant read: ignore an edge whose blocker no longer resolves.
-		if (!blockerId || !Object.prototype.hasOwnProperty.call(statusById, blockerId)) {
+		if (!blockerId || !Object.hasOwn(statusById, blockerId)) {
 			continue
 		}
 		if (!RESOLVED_BLOCKER_STATUSES.includes(statusById[blockerId])) {
@@ -137,7 +137,7 @@ export function deriveBlockedTaskIds(edges = [], statusById = {}) {
 		if (!edge || !edge.blocker || !edge.blocked) {
 			continue
 		}
-		if (!Object.prototype.hasOwnProperty.call(statusById, edge.blocker)) {
+		if (!Object.hasOwn(statusById, edge.blocker)) {
 			continue
 		}
 		if (!RESOLVED_BLOCKER_STATUSES.includes(statusById[edge.blocker])) {

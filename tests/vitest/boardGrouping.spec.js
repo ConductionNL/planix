@@ -8,12 +8,21 @@
  *
  * @spec openspec/specs/kanban-board.md
  */
-import { describe, it, expect } from 'vitest'
-import { groupTasksByStatus, BOARD_STATUSES } from '../../src/utils/taskHelpers.js'
+import { describe, expect, it } from 'vitest'
+import {
+	BOARD_STATUSES,
+	groupTasksByStatus,
+} from '../../src/utils/taskHelpers.js'
 
 describe('groupTasksByStatus', () => {
 	it('exposes the five board status lanes in order', () => {
-		expect(BOARD_STATUSES).toEqual(['open', 'in_progress', 'blocked', 'done', 'cancelled'])
+		expect(BOARD_STATUSES).toEqual([
+			'open',
+			'in_progress',
+			'blocked',
+			'done',
+			'cancelled',
+		])
 	})
 
 	it('returns a key for every status column even with no tasks', () => {
@@ -50,7 +59,11 @@ describe('groupTasksByStatus', () => {
 	})
 
 	it('ignores null / undefined entries', () => {
-		const grouped = groupTasksByStatus([null, undefined, { id: 'z', status: 'blocked' }])
+		const grouped = groupTasksByStatus([
+			null,
+			undefined,
+			{ id: 'z', status: 'blocked' },
+		])
 		expect(grouped.blocked.map((t) => t.id)).toEqual(['z'])
 	})
 
@@ -60,6 +73,10 @@ describe('groupTasksByStatus', () => {
 			{ id: '2', status: 'open' },
 			{ id: '3', status: 'open' },
 		]
-		expect(groupTasksByStatus(tasks).open.map((t) => t.id)).toEqual(['1', '2', '3'])
+		expect(groupTasksByStatus(tasks).open.map((t) => t.id)).toEqual([
+			'1',
+			'2',
+			'3',
+		])
 	})
 })

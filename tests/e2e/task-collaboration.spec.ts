@@ -29,9 +29,9 @@
  * remain; the former per-tab presence guards are now hard assertions.
  */
 
-import { test, expect } from '@playwright/test'
-import { BASE_URL as NC } from './base-url'
-import { openFixtureProjectBoard } from './nav'
+import { expect, test } from '@playwright/test'
+import { BASE_URL as NC } from './base-url.ts'
+import { openFixtureProjectBoard } from './nav.ts'
 
 const ACTIVITY_URL = `${NC}/index.php/apps/activity/`
 
@@ -51,7 +51,9 @@ async function openFirstTaskDetail(page) {
 }
 
 test.describe('Task collaboration sidebar', () => {
-	test('Add a comment to a task; edit and delete own comment only', async ({ page }) => {
+	test('Add a comment to a task; edit and delete own comment only', async ({
+		page,
+	}) => {
 		await openFirstTaskDetail(page)
 
 		const commentsTab = page.getByRole('tab', { name: /Comments/i })
@@ -85,7 +87,10 @@ test.describe('Task collaboration sidebar', () => {
 		// instance and failed on the second run against the same one.
 		const body = `Waiting on the API contract ${Date.now()}`
 		await composer.fill(body)
-		await panel.getByRole('button', { name: /(Comment|Send|Post|Add)/i }).first().click()
+		await panel
+			.getByRole('button', { name: /(Comment|Send|Post|Add)/i })
+			.first()
+			.click()
 
 		// Own comment renders…
 		const note = panel.locator('li').filter({ hasText: body })
@@ -111,11 +116,15 @@ test.describe('Task collaboration sidebar', () => {
 	test('Attach a file to a task and remove it', async ({ page }) => {
 		await openFirstTaskDetail(page)
 
-		const filesTab = page.getByRole('tab', { name: /(Attachments|Files)/i })
+		const filesTab = page.getByRole('tab', {
+			name: /(Attachments|Files)/i,
+		})
 		await expect(filesTab).toHaveCount(1)
 		await filesTab.click()
 
-		const panel = page.getByRole('tabpanel', { name: /(Attachments|Files)/i })
+		const panel = page.getByRole('tabpanel', {
+			name: /(Attachments|Files)/i,
+		})
 
 		// The Files tab renders an upload affordance and a (possibly empty) list.
 		//
@@ -143,7 +152,9 @@ test.describe('Task collaboration sidebar', () => {
 		await expect(panel.locator('input[type="file"]')).toHaveCount(1)
 	})
 
-	test('Audit Trail tab shows the change and is read-only', async ({ page }) => {
+	test('Audit Trail tab shows the change and is read-only', async ({
+		page,
+	}) => {
 		await openFirstTaskDetail(page)
 
 		const auditTab = page.getByRole('tab', { name: /(Activity|Audit)/i })
@@ -157,13 +168,20 @@ test.describe('Task collaboration sidebar', () => {
 		}
 	})
 
-	test('Planninq filter is available in the Activity app', async ({ page }) => {
+	test('Planninq filter is available in the Activity app', async ({
+		page,
+	}) => {
 		const res = await page.goto(ACTIVITY_URL)
-		test.skip(res === null || res.status() >= 400, 'Activity app not available in this environment')
+		test.skip(
+			res === null || res.status() >= 400,
+			'Activity app not available in this environment',
+		)
 
 		// Seeded task creation emits planninq activity, so the filter MUST appear
 		// once the (optional) Activity app is present.
-		const planninqFilter = page.getByRole('link', { name: /Planninq/i }).or(page.getByText(/Planninq/i))
+		const planninqFilter = page
+			.getByRole('link', { name: /Planninq/i })
+			.or(page.getByText(/Planninq/i))
 		await expect(planninqFilter.first()).toBeVisible()
 	})
 })

@@ -14,7 +14,7 @@
 					v-model="preset"
 					:options="presetOptions"
 					:clearable="false"
-					:input-label="t('planninq', 'Date range')"
+					:inputLabel="t('planninq', 'Date range')"
 					label="label"
 					@update:modelValue="onPresetChange" />
 				<template v-if="preset && preset.id === 'custom'">
@@ -95,14 +95,14 @@
  */
 import { NcEmptyContent, NcLoadingIcon, NcSelect } from '@nextcloud/vue'
 import ClockOutline from 'vue-material-design-icons/ClockOutline.vue'
-import { useTimeEntriesStore } from '../store/timeEntries.js'
 import { useObjectStore } from '../store/objectStore.js'
+import { useTimeEntriesStore } from '../store/timeEntries.js'
 import { formatDuration } from '../utils/durationParser.js'
 import {
+	currentWeekRange,
+	filterByRange,
 	groupEntriesByDate,
 	sumDuration,
-	filterByRange,
-	currentWeekRange,
 } from '../utils/timesheetHelpers.js'
 
 export default {
@@ -308,8 +308,12 @@ export default {
 			this.from = from
 			this.to = to
 			const query = {}
-			if (from) query.from = from
-			if (to) query.to = to
+			if (from) {
+				query.from = from
+			}
+			if (to) {
+				query.to = to
+			}
 			this.$router.replace({ query }).catch(() => {})
 		},
 

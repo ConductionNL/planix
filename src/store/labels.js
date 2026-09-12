@@ -1,3 +1,5 @@
+import { buildHeaders } from '@conduction/nextcloud-vue'
+import { generateUrl } from '@nextcloud/router'
 /**
  * Labels Pinia store.
  *
@@ -11,8 +13,6 @@
  * @spec openspec/changes/label-management-admin/specs/admin-user-settings/spec.md
  */
 import { defineStore } from 'pinia'
-import { buildHeaders } from '@conduction/nextcloud-vue'
-import { generateUrl } from '@nextcloud/router'
 
 // The OpenRegister register SLUG, not the app id. It moved from `planix` to
 // `planninq` together with the MigrateRegisterSlug repair step, which renames
@@ -55,7 +55,7 @@ export const useLabelsStore = defineStore('labels', {
 				const data = await response.json()
 				this.labels = Array.isArray(data.labels) ? data.labels : []
 				return this.labels
-			} catch (err) {
+			} catch {
 				this.labels = []
 				this.error = 'Failed to load labels.'
 				return []

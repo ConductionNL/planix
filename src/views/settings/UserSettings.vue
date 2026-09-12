@@ -1,53 +1,46 @@
 <template>
-	<NcAppSettingsDialog
-		:open="open"
-		:show-navigation="false"
-		:name="t('planninq', 'Planninq settings')"
-		@update:open="$emit('update:open', $event)">
-		<NcAppSettingsSection
-			id="notifications"
-			:name="t('planninq', 'Notifications')">
-			<template #icon>
-				<BellIcon :size="20" />
-			</template>
-			<!-- @nextcloud/vue@9 renamed NcCheckboxRadioSwitch's model prop from
-			     `checked`/`update:checked` to `modelValue`/`update:modelValue`.
-			     The old spelling neither reads nor writes — the switch renders
-			     permanently off and the handler never fires, silently. -->
-			<NcCheckboxRadioSwitch
-				:model-value="notifyDueReminder"
-				type="switch"
-				@update:modelValue="onToggleDueReminder">
-				{{ t('planninq', 'Notify me 1 day before a task\'s due date') }}
-			</NcCheckboxRadioSwitch>
-		</NcAppSettingsSection>
-	</NcAppSettingsDialog>
+	<NcAppSettingsSection
+		id="notifications"
+		:name="t('planninq', 'Notifications')">
+		<template #icon>
+			<BellIcon :size="20" />
+		</template>
+		<!-- @nextcloud/vue@9 renamed NcCheckboxRadioSwitch's model prop from
+		     `checked`/`update:checked` to `modelValue`/`update:modelValue`.
+		     The old spelling neither reads nor writes — the switch renders
+		     permanently off and the handler never fires, silently. -->
+		<NcCheckboxRadioSwitch
+			:modelValue="notifyDueReminder"
+			type="switch"
+			@update:modelValue="onToggleDueReminder">
+			{{ t('planninq', 'Notify me 1 day before a task\'s due date') }}
+		</NcCheckboxRadioSwitch>
+	</NcAppSettingsSection>
 </template>
 
 <script>
-import { NcAppSettingsDialog, NcAppSettingsSection, NcCheckboxRadioSwitch } from '@nextcloud/vue'
+/**
+ * Planninq's own user-settings pane.
+ *
+ * Renders a bare NcAppSettingsSection, NOT a dialog: it is passed to
+ * CnAppRoot's `#user-settings` slot, which supplies the host
+ * NcAppSettingsDialog and the navigation entry that opens it. Before the
+ * manifest shell this component owned its own NcAppSettingsDialog and its own
+ * `open` prop, wired to a MainMenu footer button; both are the shell's job now,
+ * so the wrapper and the prop are gone.
+ */
+import { NcAppSettingsSection, NcCheckboxRadioSwitch } from '@nextcloud/vue'
 import BellIcon from 'vue-material-design-icons/Bell.vue'
 import { useSettingsStore } from '../../store/modules/settings.js'
 
 export default {
 	name: 'UserSettings',
 	components: {
-		NcAppSettingsDialog,
 		NcAppSettingsSection,
 		NcCheckboxRadioSwitch,
 		BellIcon,
 	},
-	props: {
-		open: {
-			type: Boolean,
-			default: false,
-		},
-	},
 
-	// Vue 3 warns about "extraneous non-emits event listeners" for any event a
-	// component emits without declaring it, and lets undeclared listeners fall
-	// through onto the root element as native handlers.
-	emits: ['update:open'],
 	computed: {
 		/**
 		 * Whether due-date reminders are enabled for the current user.
@@ -62,12 +55,14 @@ export default {
 			return value !== false && value !== 'false'
 		},
 	},
+
 	/**
 	 * @spec exclude Lifecycle glue — fetches settings so the toggle reflects the stored value.
 	 */
 	created() {
 		useSettingsStore().fetchSettings()
 	},
+
 	methods: {
 		/**
 		 * Persist the due-date reminder toggle through saveUserSettings, which

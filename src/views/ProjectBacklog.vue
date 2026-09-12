@@ -63,6 +63,7 @@ export default {
 		projectsStore() {
 			return useProjectsStore()
 		},
+
 		/**
 		 * @spec exclude Trivial display getter — active project title with UUID fallback.
 		 */

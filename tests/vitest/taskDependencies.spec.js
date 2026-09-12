@@ -7,13 +7,13 @@
  *
  * @spec openspec/changes/task-dependencies/specs/task-dependencies/spec.md
  */
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
-	isBlocked,
+	dependencyPickerCandidates,
 	deriveBlockedTaskIds,
+	isBlocked,
 	openBlockerIds,
 	statusMapFromTasks,
-	dependencyPickerCandidates,
 } from '../../src/utils/taskHelpers.js'
 
 const statusById = {

@@ -21,10 +21,12 @@ declare(strict_types=1);
 
 namespace OCA\Planninq\AppInfo;
 
+use OCA\OpenRegister\AppHost\Bootstrap;
 use OCA\OpenRegister\Event\ObjectCreatedEvent;
 use OCA\OpenRegister\Event\ObjectDeletedEvent;
 use OCA\OpenRegister\Event\ObjectUpdatedEvent;
 use OCA\Planninq\Listener\DeepLinkRegistrationListener;
+use OCA\Planninq\Listener\RegisterProjectsLeafListener;
 use OCA\Planninq\Listener\TaskActivityListener;
 use OCA\Planninq\Settings\AdminSettings;
 use OCP\AppFramework\App;
@@ -38,6 +40,11 @@ use Psr\Container\ContainerInterface;
  * Main application class for the Planninq Nextcloud app.
  *
  * @spec openspec/specs/app-metadata/spec.md
+ *
+ * @SuppressWarnings(PHPMD.CouplingBetweenObjects) This IS the composition
+ * root: its job is to name every class the app wires together, so the count
+ * measures the size of the app rather than a design fault. The wiring is
+ * already split into per-concern register* methods one layer down.
  */
 class Application extends App implements IBootstrap {
 	public const APP_ID = 'planninq';
@@ -86,6 +93,10 @@ class Application extends App implements IBootstrap {
 		// with per-user due-reminder logic, Repair\InitializeSettings register
 		// import, the kanban Project/Dependency/Label controllers) are kept.
 		$this->registerAppHost(context: $context);
+
+		// Publish the projects leaf on OpenRegister's integration registry, so
+		// sibling apps render planninq's projects instead of querying for them.
+		$this->registerProjectsLeaf(context: $context);
 
 		// NOTE: the task-lifecycle Activity listener is subscribed from boot(),
 		// not here — see registerFilteredObjectListener().
@@ -160,6 +171,13 @@ class Application extends App implements IBootstrap {
 	 * @var string
 	 */
 	private const OR_DEEPLINK_REGISTRATION_EVENT = 'OCA\\OpenRegister\\Event\\DeepLinkRegistrationEvent';
+
+	/**
+	 * OpenRegister's leaf-provider collect-event name (ADR-066).
+	 *
+	 * @var string
+	 */
+	private const OR_LEAF_REGISTRATION_EVENT = 'OCA\\OpenRegister\\Event\\RegisterLeafProvidersEvent';
 
 	/**
 	 * Leaf DI service id for the AppHost dashboard SPA controller.
@@ -239,7 +257,61 @@ class Application extends App implements IBootstrap {
 		$this->registerAppHostObservability(context: $context);
 		$this->registerAppHostSettings(context: $context);
 		$this->registerAppHostDeepLinks(context: $context);
+		$this->registerAppHostStore(context: $context);
 	}//end registerAppHost()
+
+	/**
+	 * Bind the store controller the adopted route table already declares.
+	 *
+	 * 🔴 THIS ROUTE ARRIVES WHETHER THE APP WANTS IT OR NOT.
+	 *
+	 * `Routes::standard()`, which appinfo/routes.php adopts, declares
+	 * `/api/store/items`. The binding normally comes from
+	 * `Bootstrap::register()`, and planninq does not call that: it aliases the
+	 * plumbing classes it wants, one at a time, and keeps its own settings and
+	 * kanban controllers. The store controller was never on that list.
+	 *
+	 * So the route matched a controller class that does not exist, and every
+	 * request to it returned HTTP 500 rather than 404. Measured on a running
+	 * instance 2026-09-03, alongside decidiq and filinq.
+	 *
+	 * The engine owns the controller's constructor argument list, which is why
+	 * this calls the shared helper rather than adding a ninth hand-written
+	 * factory beside the others: that argument list gained a parameter the
+	 * same day this defect was found, and a hand-written copy would have
+	 * broken instead of adapting.
+	 *
+	 * @param IRegistrationContext $context The registration context.
+	 *
+	 * @return void
+	 *
+	 * @SuppressWarnings(PHPMD.StaticAccess) OCA\OpenRegister\AppHost\Bootstrap
+	 * is a cross-app static entry point in a SIBLING app that may be absent or
+	 * unloadable here — the call is guarded by class_exists() and wrapped in a
+	 * catch(\Throwable) for exactly that reason. It cannot be injected: this
+	 * runs at the composition root, so there is no container to resolve an
+	 * adapter from.
+	 */
+	private function registerAppHostStore(IRegistrationContext $context): void {
+		// The class_exists() guard MUST stay in this method: it is also the
+		// assertion psalm relies on to accept the Bootstrap call below, and
+		// psalm does not carry that narrowing across a call. register() has
+		// already run OpenRegisterAutoloader::register() above.
+		if (class_exists(Bootstrap::class) === true) {
+			try {
+				Bootstrap::aliasStoreController(
+					context: $context,
+					appId: self::APP_ID,
+					controllerNs: 'OCA\\Planninq\\Controller'
+				);
+			} catch (\Throwable) {
+				// An OpenRegister older than the helper, or present but
+				// unloadable. The store route is then no worse off than it is
+				// today, and every registration around this one still runs.
+			}
+		}
+
+	}//end registerAppHostStore()
 
 	/**
 	 * Alias the dashboard SPA and per-user preferences controllers.
@@ -396,6 +468,40 @@ class Application extends App implements IBootstrap {
 			listener: DeepLinkRegistrationListener::class
 		);
 	}//end registerAppHostDeepLinks()
+
+	/**
+	 * Subscribe the `planninq-projects` leaf to OpenRegister's collect-event.
+	 *
+	 * Planninq owns the project entity, so sibling apps render it through this
+	 * leaf rather than reading planninq's register from their own manifests.
+	 * Pipelinq did the latter and, on an install without the owning app, showed
+	 * an empty table that looked exactly like a client with no projects.
+	 *
+	 * The event NAME is a plain string for the same reason every OpenRegister
+	 * FQCN in this class is: IEventDispatcher keys on the string, so nothing
+	 * here needs OpenRegister to be autoloadable at bootstrap. The listener
+	 * class itself is only constructed when OpenRegister dispatches, which it
+	 * can only do when it is installed.
+	 *
+	 * @param IRegistrationContext $context The registration context.
+	 *
+	 * @return void
+	 *
+	 * @spec openspec/specs/project-delivery/spec.md#requirement-both-halves-of-the-projects-leaf-agree
+	 */
+	private function registerProjectsLeaf(IRegistrationContext $context): void {
+		$context->registerService(
+			RegisterProjectsLeafListener::class,
+			static fn (ContainerInterface $c): RegisterProjectsLeafListener => new RegisterProjectsLeafListener(
+				l10n: $c->get('OCP\\IL10N'),
+				logger: $c->get('Psr\\Log\\LoggerInterface')
+			)
+		);
+		$context->registerEventListener(
+			event: self::OR_LEAF_REGISTRATION_EVENT,
+			listener: RegisterProjectsLeafListener::class
+		);
+	}//end registerProjectsLeaf()
 
 	/**
 	 * Boot the application.

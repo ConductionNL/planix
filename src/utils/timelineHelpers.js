@@ -93,7 +93,7 @@ export function toScheduled(tasks = []) {
  * are present as rendered bars — the timeline draws existing links, it never
  * fabricates one. Edges are keyed by their stored id.
  *
- * @param {Array<object>} scheduled Tasks from {@see toScheduled} (with startDay/endDay).
+ * @param {Array<object>} scheduled Tasks from {@link toScheduled} (with startDay/endDay).
  * @param {Array<object>} dependencies Stored edges ({id, blocker, blocked}).
  * @param {number} pxPerDay Pixels per day for the active zoom.
  * @return {{bars: Array<object>, edgeLines: Array<object>, minDay: number, maxDay: number, dayCount: number, chartWidth: number, barsHeight: number}}

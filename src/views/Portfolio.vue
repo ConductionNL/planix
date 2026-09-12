@@ -53,7 +53,7 @@
 						</th>
 						<td>{{ row.members }}</td>
 						<td>{{ row.open }}</td>
-						<td :class="{ 'portfolio__overdue': row.overdue > 0 }">
+						<td :class="{ portfolio__overdue: row.overdue > 0 }">
 							{{ row.overdue }}
 						</td>
 						<td class="portfolio__bar-col">
