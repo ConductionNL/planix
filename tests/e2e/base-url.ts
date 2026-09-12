@@ -40,13 +40,17 @@
  * variable is what keeps a strict resolver compatible with CI.
  */
 
+import { assertInstancePermitted } from './shared-instance.ts'
+
 const CI_DEFAULT_BASE_URL = 'http://localhost:8080'
 
 /**
  * Resolve the Nextcloud base URL for this run.
  *
  * @return the base URL, without a trailing slash
- * @throws when no target is configured outside CI
+ * @throws when no target is configured outside CI, and when the target names
+ *         the shared development instance without the opt-in flag that
+ *         permits it (see shared-instance.ts)
  */
 export function resolveBaseURL(): string {
 	const explicit
@@ -57,7 +61,7 @@ export function resolveBaseURL(): string {
 			?? process.env.BASE_URL
 
 	if (explicit) {
-		return explicit.replace(/\/+$/, '')
+		return assertInstancePermitted(explicit.replace(/\/+$/, ''))
 	}
 
 	if (process.env.CI) {
